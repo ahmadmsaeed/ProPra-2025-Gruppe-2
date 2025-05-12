@@ -1,0 +1,11 @@
+.up .status-text {
+  color: #2ecc40; /* grün */
+  font-weight: bold;
+}
+.down .status-text {
+  color: #ff4136; /* rot */
+  font-weight: bold;
+}
+.unknown .status-text {
+  color: #888;
+}
