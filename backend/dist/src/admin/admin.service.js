@@ -49,7 +49,7 @@ let AdminService = class AdminService {
             where: { email: createUserDto.email },
         });
         if (existingUser) {
-            throw new common_1.ConflictException('Email already in use');
+            throw new common_1.ConflictException('E-Mail wird bereits verwendet');
         }
         const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
         return this.prisma.user.create({
@@ -63,14 +63,14 @@ let AdminService = class AdminService {
     async updateUser(userId, updateUserDto) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) {
-            throw new common_1.NotFoundException(`User with ID ${userId} not found`);
+            throw new common_1.NotFoundException(`Benutzer mit ID ${userId} nicht gefunden`);
         }
         if (updateUserDto.email && updateUserDto.email !== user.email) {
             const existingUser = await this.prisma.user.findUnique({
                 where: { email: updateUserDto.email },
             });
             if (existingUser) {
-                throw new common_1.ConflictException('Email already in use');
+                throw new common_1.ConflictException('E-Mail wird bereits verwendet');
             }
         }
         const data = { ...updateUserDto };
@@ -86,10 +86,10 @@ let AdminService = class AdminService {
     async deleteUser(userId) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) {
-            throw new common_1.NotFoundException(`User with ID ${userId} not found`);
+            throw new common_1.NotFoundException(`Benutzer mit ID ${userId} nicht gefunden`);
         }
         if (user.role === client_1.Role.TEACHER) {
-            throw new common_1.BadRequestException('Teacher accounts cannot be deleted');
+            throw new common_1.BadRequestException('Dozenten-Konten können nicht gelöscht werden');
         }
         return this.prisma.user.delete({
             where: { id: userId },
@@ -99,7 +99,7 @@ let AdminService = class AdminService {
     async blockUser(userId) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) {
-            throw new common_1.NotFoundException(`User with ID ${userId} not found`);
+            throw new common_1.NotFoundException(`Benutzer mit ID ${userId} nicht gefunden`);
         }
         return this.prisma.user.update({
             where: { id: userId },
@@ -110,7 +110,7 @@ let AdminService = class AdminService {
     async unblockUser(userId) {
         const user = await this.prisma.user.findUnique({ where: { id: userId } });
         if (!user) {
-            throw new common_1.NotFoundException(`User with ID ${userId} not found`);
+            throw new common_1.NotFoundException(`Benutzer mit ID ${userId} nicht gefunden`);
         }
         return this.prisma.user.update({
             where: { id: userId },

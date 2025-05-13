@@ -26,7 +26,7 @@ let BlockedUserGuard = class BlockedUserGuard {
                 select: { isBlocked: true },
             });
             if (dbUser?.isBlocked) {
-                throw new common_1.ForbiddenException('Your account is blocked. Please contact support.');
+                throw new common_1.ForbiddenException('Ihr Konto ist gesperrt. Bitte kontaktieren Sie den Support.');
             }
         }
         return true;

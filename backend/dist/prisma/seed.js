@@ -11,121 +11,64 @@ async function main() {
         await prisma.user.deleteMany();
     }
     catch (e) {
-        console.log('Tables do not exist yet. This is expected during the first run.');
+        console.log('Tabellen existieren noch nicht. Dies wird beim ersten Start erwartet.');
     }
-    console.log('Database cleared. Starting to seed...');
+    console.log('Datenbank bereinigt. Starte Seeding...');
     const teacher = await prisma.user.create({
         data: {
-            name: 'Main Teacher',
+            name: 'Hauptdozent',
             email: 'teacher@example.com',
             password: await bcrypt.hash('password123', 10),
             role: client_1.Role.TEACHER,
         },
     });
-    console.log(`Created teacher: ${teacher.email}`);
+    console.log(`Dozent erstellt: ${teacher.email}`);
     const tutor1 = await prisma.user.create({
         data: {
-            name: 'Tutor One',
+            name: 'Tutor Eins',
             email: 'tutor1@example.com',
             password: await bcrypt.hash('password123', 10),
             role: client_1.Role.TUTOR,
         },
     });
-    console.log(`Created tutor: ${tutor1.email}`);
+    console.log(`Tutor erstellt: ${tutor1.email}`);
     const tutor2 = await prisma.user.create({
         data: {
-            name: 'Tutor Two',
+            name: 'Tutor Zwei',
             email: 'tutor2@example.com',
             password: await bcrypt.hash('password123', 10),
             role: client_1.Role.TUTOR,
         },
     });
-    console.log(`Created tutor: ${tutor2.email}`);
+    console.log(`Tutor erstellt: ${tutor2.email}`);
     const student1 = await prisma.user.create({
         data: {
-            name: 'Student One',
+            name: 'Student Eins',
             email: 'student1@example.com',
             password: await bcrypt.hash('password123', 10),
             role: client_1.Role.STUDENT,
         },
     });
-    console.log(`Created student: ${student1.email}`);
+    console.log(`Student erstellt: ${student1.email}`);
     const student2 = await prisma.user.create({
         data: {
-            name: 'Student Two',
+            name: 'Student Zwei',
             email: 'student2@example.com',
             password: await bcrypt.hash('password123', 10),
             role: client_1.Role.STUDENT,
         },
     });
-    console.log(`Created student: ${student2.email}`);
+    console.log(`Student erstellt: ${student2.email}`);
     const student3 = await prisma.user.create({
         data: {
-            name: 'Student Three',
+            name: 'Student Drei',
             email: 'student3@example.com',
             password: await bcrypt.hash('password123', 10),
             role: client_1.Role.STUDENT,
         },
     });
-    console.log(`Created student: ${student3.email}`);
-    const sampleDatabase = await prisma.database.create({
-        data: {
-            name: 'SQL Exercise - University Schema',
-            schema: JSON.stringify({
-                students: {
-                    id: 'INT PRIMARY KEY',
-                    name: 'VARCHAR(100)',
-                    email: 'VARCHAR(100)',
-                    major: 'VARCHAR(100)',
-                    gpa: 'FLOAT'
-                },
-                courses: {
-                    id: 'INT PRIMARY KEY',
-                    title: 'VARCHAR(100)',
-                    department: 'VARCHAR(100)',
-                    credits: 'INT'
-                },
-                enrollments: {
-                    id: 'INT PRIMARY KEY',
-                    student_id: 'INT REFERENCES students(id)',
-                    course_id: 'INT REFERENCES courses(id)',
-                    semester: 'VARCHAR(20)',
-                    grade: 'VARCHAR(2)'
-                }
-            }),
-            seedData: JSON.stringify({
-                students: [
-                    { id: 1, name: 'Alice Smith', email: 'alice@university.edu', major: 'Computer Science', gpa: 3.8 },
-                    { id: 2, name: 'Bob Johnson', email: 'bob@university.edu', major: 'Mathematics', gpa: 3.5 },
-                    { id: 3, name: 'Charlie Brown', email: 'charlie@university.edu', major: 'Physics', gpa: 3.9 }
-                ],
-                courses: [
-                    { id: 101, title: 'Introduction to Programming', department: 'CS', credits: 4 },
-                    { id: 102, title: 'Data Structures', department: 'CS', credits: 4 },
-                    { id: 201, title: 'Calculus I', department: 'MATH', credits: 3 }
-                ],
-                enrollments: [
-                    { id: 1001, student_id: 1, course_id: 101, semester: 'Fall 2023', grade: 'A' },
-                    { id: 1002, student_id: 1, course_id: 102, semester: 'Spring 2024', grade: 'B+' },
-                    { id: 1003, student_id: 2, course_id: 201, semester: 'Fall 2023', grade: 'A-' },
-                    { id: 1004, student_id: 3, course_id: 101, semester: 'Fall 2023', grade: 'A' }
-                ]
-            })
-        }
-    });
-    console.log(`Created sample database: ${sampleDatabase.name}`);
-    const sampleExercise = await prisma.exercise.create({
-        data: {
-            title: 'Basic SELECT Query',
-            description: 'Write a SQL query to retrieve all students with a GPA greater than 3.5, ordered by GPA in descending order.',
-            initialQuery: 'SELECT * FROM students WHERE',
-            solutionQuery: 'SELECT * FROM students WHERE gpa > 3.5 ORDER BY gpa DESC;',
-            databaseSchemaId: sampleDatabase.id,
-            authorId: teacher.id
-        }
-    });
-    console.log(`Created sample exercise: ${sampleExercise.title}`);
-    console.log(`Seeding finished.`);
+    console.log(`Student erstellt: ${student3.email}`);
+    console.log(`Seeding abgeschlossen.`);
 }
 main()
     .catch((e) => {

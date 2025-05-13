@@ -35,19 +35,19 @@ let AdminController = class AdminController {
     }
     async updateUser(userId, updateUserDto, req) {
         if (req.user.sub === userId && updateUserDto.role && updateUserDto.role !== client_1.Role.TEACHER) {
-            throw new common_1.ForbiddenException('You cannot change your own role.');
+            throw new common_1.ForbiddenException('Sie können Ihre eigene Rolle nicht ändern.');
         }
         return this.adminService.updateUser(userId, updateUserDto);
     }
     async deleteUser(userId, req) {
         if (req.user.sub === userId) {
-            throw new common_1.ForbiddenException('You cannot delete your own account.');
+            throw new common_1.ForbiddenException('Sie können Ihr eigenes Konto nicht löschen.');
         }
         return this.adminService.deleteUser(userId);
     }
     async blockUser(userId, req) {
         if (req.user.sub === userId) {
-            throw new common_1.ForbiddenException('You cannot block yourself.');
+            throw new common_1.ForbiddenException('Sie können sich nicht selbst sperren.');
         }
         return this.adminService.blockUser(userId);
     }

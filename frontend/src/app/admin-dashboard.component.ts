@@ -9,6 +9,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthService, UserRole } from './auth.service';
+import { AdminService } from './admin.service';
 import { Observable, catchError, map, of, forkJoin } from 'rxjs';
 
 // Define a component for the user dialog that will be implemented later

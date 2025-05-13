@@ -35,14 +35,14 @@ let AuthService = class AuthService {
     async login(dto) {
         const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
         if (!user) {
-            throw new common_1.UnauthorizedException('Invalid credentials');
+            throw new common_1.UnauthorizedException('Ungültige Anmeldedaten');
         }
         if (user.isBlocked) {
-            throw new common_1.ForbiddenException('Your account is blocked. Please contact support.');
+            throw new common_1.ForbiddenException('Ihr Konto ist gesperrt. Bitte kontaktieren Sie den Support.');
         }
         const isPasswordValid = await bcrypt.compare(dto.password, user.password);
         if (!isPasswordValid) {
-            throw new common_1.UnauthorizedException('Invalid credentials');
+            throw new common_1.UnauthorizedException('Ungültige Anmeldedaten');
         }
         const payload = { email: user.email, sub: user.id, role: user.role };
         return {
@@ -56,7 +56,7 @@ let AuthService = class AuthService {
             select: { id: true, email: true, name: true, role: true, isBlocked: true }
         });
         if (!dbUser)
-            throw new common_1.NotFoundException('User not found');
+            throw new common_1.NotFoundException('Benutzer nicht gefunden');
         return dbUser;
     }
 };

@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
+import { environment } from '../environments/environment';
 
 export type UserRole = 'TEACHER' | 'TUTOR' | 'STUDENT';
 export interface User {
@@ -12,7 +13,7 @@ export interface User {
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private apiUrl = 'http://localhost:3000/auth';
+  private apiUrl = `${environment.apiUrl}/auth`;
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   currentUser$ = this.currentUserSubject.asObservable();
 
