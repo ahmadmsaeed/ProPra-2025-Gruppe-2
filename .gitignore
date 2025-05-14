@@ -24,9 +24,6 @@ yarn-error.log
 !.vscode/extensions.json
 .history/*
 
-# Environment variables
-backend/.env
-
 # Logs
 logs
 *.log

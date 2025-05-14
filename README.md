@@ -8,10 +8,12 @@ Eine interaktive Plattform zum Erlernen und Üben von SQL-Abfragen mit sofortige
 
 Diese Lernplattform ermöglicht es Dozenten, SQL-Übungen zu erstellen und Studenten, diese Übungen zu bearbeiten. Die Anwendung besteht aus einem Angular-Frontend und einem NestJS-Backend mit einer PostgreSQL-Datenbank.
 
-## Schnellstart mit Docker (empfohlen)
+## Lokale Entwicklung mit Docker-Datenbank (empfohlen)
 
 ### Voraussetzungen
-- [Docker](https://www.docker.com/products/docker-desktop/) und Docker Compose
+- [Docker](https://www.docker.com/products/docker-desktop/)
+- Node.js (Version 18 oder höher)
+- npm (wird mit Node.js installiert)
 
 ### Installation und Start
 1. Repository klonen:
@@ -20,99 +22,62 @@ Diese Lernplattform ermöglicht es Dozenten, SQL-Übungen zu erstellen und Stude
    cd ProPra-2025-Gruppe-2
    ```
 
-2. Anwendung starten:
+2. PostgreSQL-Datenbank mit Docker starten:
    ```bash
    docker-compose up -d
    ```
 
-3. Zugriff auf die Anwendung:
+3. Backend einrichten:
+   ```bash
+   cd backend
+   npm install
+   
+   # Prisma einrichten und Datenbank initialisieren
+   npx prisma generate
+   npx prisma migrate deploy
+   npx prisma db seed
+   
+   # Backend starten
+   npm run start:dev
+   ```
+
+4. Frontend einrichten (in einem neuen Terminal):
+   ```bash
+   cd frontend
+   npm install
+   npm start
+   ```
+
+5. Zugriff auf die Anwendung:
    - Frontend: http://localhost:4200
    - Backend API: http://localhost:3000
 
-4. Standard-Anmeldedaten:
+6. Standard-Anmeldedaten:
    - Dozent: teacher@example.com / password123
    - Tutor: tutor1@example.com / password123
    - Student: student1@example.com / password123
 
-### Nützliche Docker-Befehle
-- Logs anzeigen:
+### Nützliche Docker-Befehle für die Datenbank
+- Datenbank-Logs anzeigen:
   ```bash
-  docker-compose logs
-  docker-compose logs backend
-  docker-compose logs frontend
+  docker-compose logs postgres
   ```
 
-- Anwendung stoppen:
+- Datenbank stoppen:
   ```bash
   docker-compose down
   ```
 
-- Nach Code-Änderungen neu bauen und starten:
+- Datenbank zurücksetzen:
   ```bash
+  # Datenbank Container stoppen und entfernen
   docker-compose down
-  docker-compose build
+  # Volume mit den Daten löschen
+  docker volume rm propra-2025-gruppe-2_postgres_data
+  # Datenbank neu starten
   docker-compose up -d
   ```
 
-- Datenbank zurücksetzen (Windows):
-  ```bash
-  docker-reset.bat
-  ```
-
-- Datenbank zurücksetzen (Linux/Mac):
-  ```bash
-  ./docker-reset.sh
-  ```
-
-## Manuelle Installation (für Entwickler)
-
-### Voraussetzungen
-- Node.js (Version 18 oder höher)
-- npm (wird mit Node.js installiert)
-- PostgreSQL (Version 14 oder höher)
-
-### 1. Repository klonen
-```bash
-git clone https://github.com/ProPra-2025-Gruppe-2/sql-learning-platform.git
-cd ProPra-2025-Gruppe-2
-```
-
-### 2. Backend einrichten
-```bash
-cd backend
-
-# Abhängigkeiten installieren
-npm install
-
-# .env-Datei erstellen
-```
-
-Erstellen Sie eine `.env`-Datei im `backend`-Verzeichnis:
-```
-DATABASE_URL="postgresql://username:password@localhost:5432/sql_learning_platform"
-JWT_SECRET="super-secure-jwt-secret-for-authentication"
-```
-Ersetzen Sie `username` und `password` mit Ihren PostgreSQL-Zugangsdaten.
-
-```bash
-# Datenbank initialisieren
-npx prisma migrate dev --name init
-npx prisma db seed
-
-# Backend-Server starten
-npm run start:dev
-```
-
-### 3. Frontend einrichten
-```bash
-cd ../frontend
-
-# Abhängigkeiten installieren
-npm install
-
-# Frontend-Server starten
-npm start
-```
 
 ## Projektstruktur
 
@@ -135,21 +100,4 @@ ProPra-2025-Gruppe-2/
 ├── docker-compose.yml      # Docker-Konfiguration
 └── README.md               # Diese Datei
 ```
-
-## Entwicklung
-
-### Backend-Tests
-```bash
-cd backend
-npm run test
-```
-
-### Frontend-Tests
-```bash
-cd frontend
-npm run test
-```
-
-## Mitwirkende
-- ProPra 2025 Gruppe 2
 
