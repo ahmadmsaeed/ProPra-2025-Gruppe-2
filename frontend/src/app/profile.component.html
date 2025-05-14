@@ -1,0 +1,14 @@
+<mat-card style="max-width:400px;margin:2em auto;">
+  <h2 style="text-align:center">Profil</h2>
+  <div *ngIf="user$ | async as user; else loading">
+    <p><b>Name:</b> {{user.name}}</p>
+    <p><b>Email:</b> {{user.email}}</p>    <div style="text-align:center;margin-top:2em;">
+      <button mat-stroked-button color="warn" (click)="logout()">
+        <mat-icon>logout</mat-icon> Abmelden
+      </button>
+    </div>
+  </div>  <ng-template #loading>
+    <p>Lade Profil...</p>
+  </ng-template>
+  <div *ngIf="error" style="color:#c62828;text-align:center;margin-top:1em;">{{error}}</div>
+</mat-card>

@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          Int          @id @default(autoincrement())
+  email       String       @unique
+  password    String
+  name        String
+  createdAt   DateTime     @default(now())
+  role        Role         @default(STUDENT)
+  isBlocked   Boolean      @default(false)
+  exercises   Exercise[]
+  submissions Submission[]
+}
+
+model Exercise {
+  id               Int          @id @default(autoincrement())
+  title            String
+  description      String
+  initialQuery     String?
+  solutionQuery    String
+  databaseSchemaId Int
+  authorId         Int
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  author           User         @relation(fields: [authorId], references: [id])
+  database         Database     @relation(fields: [databaseSchemaId], references: [id])
+  submissions      Submission[]
+}
+
+model Submission {
+  id         Int      @id @default(autoincrement())
+  query      String
+  isCorrect  Boolean
+  feedback   String
+  studentId  Int
+  exerciseId Int
+  createdAt  DateTime @default(now())
+  exercise   Exercise @relation(fields: [exerciseId], references: [id])
+  student    User     @relation(fields: [studentId], references: [id])
+}
+
+model Database {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  schema    String
+  seedData  String
+  exercises Exercise[]
+}
+
+enum Role {
+  TEACHER
+  TUTOR
+  STUDENT
+}

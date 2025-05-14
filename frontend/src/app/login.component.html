@@ -1,0 +1,17 @@
+<mat-card style="max-width:400px;margin:2em auto;">
+  <h2 style="text-align:center">Anmelden</h2>
+  <form (ngSubmit)="onSubmit()" #loginForm="ngForm" autocomplete="off">
+    <mat-form-field appearance="outline" style="width:100%;margin-bottom:1em;">
+      <mat-label>E-Mail</mat-label>
+      <input matInput name="email" [(ngModel)]="form.email" required type="email" placeholder="z.B. max@mustermann.de" />
+    </mat-form-field>
+    <mat-form-field appearance="outline" style="width:100%;margin-bottom:1em;">
+      <mat-label>Passwort</mat-label>
+      <input matInput name="password" [(ngModel)]="form.password" required type="password" placeholder="Dein Passwort" />
+    </mat-form-field>
+    <div style="text-align:center;margin-top:1.5em;">
+      <button mat-raised-button color="primary" type="submit" [disabled]="loginForm.invalid">Anmelden</button>
+    </div>
+  </form>
+  <div *ngIf="error" style="color:#c62828;text-align:center;margin-top:1em;">{{error}}</div>
+</mat-card>
