@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800px" height="600px" viewBox="0 0 800 600" version="1.1" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient x1="0%" y1="0%" x2="100%" y2="100%" id="gradient">
+            <stop stop-color="#2196f3" offset="0%"/>
+            <stop stop-color="#3f51b5" offset="100%"/>
+        </linearGradient>
+    </defs>
+    <g fill="none" fill-rule="evenodd">
+        <!-- Database Icon -->
+        <g transform="translate(250, 150)">
+            <path d="M150,40 C150,17.90861 116.421356,0 75,0 C33.578644,0 0,17.90861 0,40 C0,62.09139 33.578644,80 75,80 C116.421356,80 150,62.09139 150,40" fill="url(#gradient)" opacity="0.3"/>
+            <path d="M150,80 L150,200 C150,222.09139 116.421356,240 75,240 C33.578644,240 0,222.09139 0,200 L0,80" fill="url(#gradient)" opacity="0.2"/>
+            <path d="M150,40 C150,62.09139 116.421356,80 75,80 C33.578644,80 0,62.09139 0,40" stroke="#2196f3" stroke-width="4" fill="none"/>
+            <path d="M150,80 L150,200 C150,222.09139 116.421356,240 75,240 C33.578644,240 0,222.09139 0,200 L0,80" stroke="#2196f3" stroke-width="4" fill="none"/>
+        </g>
+        
+        <!-- SQL Query -->
+        <g transform="translate(100, 100)">
+            <rect x="0" y="0" width="400" height="60" rx="4" fill="#FFFFFF" stroke="#2196f3" stroke-width="2"/>
+            <text x="20" y="35" font-family="Monaco, monospace" font-size="16" fill="#3f51b5">
+                SELECT * FROM learning WHERE fun = true;
+            </text>
+        </g>
+        
+        <!-- Code Lines -->
+        <g transform="translate(450, 250)">
+            <rect x="0" y="0" width="200" height="20" rx="2" fill="#E3F2FD"/>
+            <rect x="0" y="30" width="150" height="20" rx="2" fill="#E3F2FD"/>
+            <rect x="0" y="60" width="180" height="20" rx="2" fill="#E3F2FD"/>
+        </g>
+    </g>
+</svg> 
