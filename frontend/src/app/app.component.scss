@@ -1,0 +1,120 @@
+.nav-toolbar {
+  background: linear-gradient(120deg, #2196f3, #3f51b5);
+  color: white;
+  padding: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 2rem;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: white;
+  text-decoration: none;
+  margin-right: 2rem;
+
+  mat-icon {
+    margin-right: 0.5rem;
+  }
+}
+
+.nav-links {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  a {
+    color: white;
+    opacity: 0.9;
+    transition: opacity 0.2s ease;
+
+    &:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    mat-icon {
+      margin-right: 0.5rem;
+    }
+  }
+}
+
+.auth-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  .register-btn {
+    color: white;
+    opacity: 0.9;
+
+    &:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  .user-menu-btn {
+    color: white;
+    opacity: 0.9;
+    
+    &:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    mat-icon:first-child {
+      margin-right: 0.5rem;
+    }
+
+    mat-icon:last-child {
+      margin-left: 0.5rem;
+    }
+  }
+}
+
+// Add padding to main content to account for fixed navbar
+.main-container {
+  padding-top: 64px; // Height of toolbar
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .nav-container {
+    padding: 0 1rem;
+  }
+
+  .nav-links {
+    display: none; // Hide on mobile, could be replaced with a mobile menu
+  }
+
+  .auth-section {
+    margin-left: auto;
+  }
+
+  .main-container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}

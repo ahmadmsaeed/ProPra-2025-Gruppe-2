@@ -5,6 +5,8 @@ import { FormsModule } from '@angular/forms';
 
 // ➡️ Importiere das Tabs-Modul von Angular Material
 import { MatTabsModule } from '@angular/material/tabs';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 
 import { AppComponent } from './app.component';
 import { FilterByStatusPipe } from './filter-by-status.pipe';
@@ -17,9 +19,9 @@ import { FilterByStatusPipe } from './filter-by-status.pipe';
   imports: [
     BrowserModule,
     BrowserAnimationsModule,
-
-    // ➡️ hier hinzufügen:
     MatTabsModule,
+    MatButtonModule,
+    MatIconModule,
     FormsModule
   ],
   providers: [],

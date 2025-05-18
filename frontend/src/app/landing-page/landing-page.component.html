@@ -1,0 +1,58 @@
+<div class="landing-page">
+  <!-- Hero Section -->
+  <section class="hero" @fadeIn>
+    <div class="hero-content">
+      <h1>Meistere SQL mit interaktivem Lernen</h1>
+      <p class="subtitle">Die ProPra Gruppe 2 hilft dir mit praktischen Übungen und Echtzeit-Feedback SQL zu verstehen!</p>
+      <button mat-raised-button color="primary" (click)="navigateToRegister()">
+        Jetzt kostenlos starten
+      </button>
+    </div>
+    <div class="hero-image">
+      <img src="assets/images/sql-hero.png" alt="SQL Learning Platform" />
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features" @fadeIn>
+    <h2>Warum SQL bei uns lernen?</h2>
+    <div class="features-grid">
+      <div class="feature-card" *ngFor="let feature of features" @fadeIn>
+        <mat-icon>{{feature.icon}}</mat-icon>
+        <h3>{{feature.title}}</h3>
+        <p>{{feature.description}}</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Learning Path Section -->
+  <section class="learning-path" @fadeIn>
+    <h2>Dein Weg zum SQL-Experten</h2>
+    <div class="path-steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Grundlagen</h3>
+        <p>Lerne die Basis von SQL-Abfragen und Datenbankkonzepten</p>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>Praxis</h3>
+        <p>Übe mit realen Datensätzen und praktischen Beispielen</p>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>Fortgeschritten</h3>
+        <p>Tauche ein in komplexe Abfragen und Datenbankoptimierung</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta" @fadeIn>
+    <h2>Bereit loszulegen?</h2>
+    <p>Starte jetzt deine Reise zum SQL-Experten</p>
+    <button mat-raised-button color="primary" (click)="navigateToRegister()">
+      Leg direkt los!
+    </button>
+  </section>
+</div> 

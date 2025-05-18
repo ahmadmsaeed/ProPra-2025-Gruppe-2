@@ -1,14 +1,60 @@
-<mat-card style="max-width:400px;margin:2em auto;">
-  <h2 style="text-align:center">Profil</h2>
-  <div *ngIf="user$ | async as user; else loading">
-    <p><b>Name:</b> {{user.name}}</p>
-    <p><b>Email:</b> {{user.email}}</p>    <div style="text-align:center;margin-top:2em;">
+<div class="profile-container">
+  <h1>Mein Profil</h1>
+  
+  <mat-card class="profile-card">
+    <mat-card-header>
+      <mat-card-title>Persönliche Informationen</mat-card-title>
+      <div mat-card-avatar>
+        <mat-icon class="avatar-icon">account_circle</mat-icon>
+      </div>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div *ngIf="user$ | async as user; else loading" class="user-info">
+        <div class="info-row">
+          <span class="info-label">Name</span>
+          <span class="info-value">{{user.name}}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">E-Mail</span>
+          <span class="info-value">{{user.email}}</span>
+        </div>
+        <div class="info-row role-row">
+          <span class="info-label">Rolle</span>
+          <span class="info-value">
+            <span class="badge-wrapper">
+              <span class="role-badge" [ngClass]="getUserRoleClass()">{{getUserRole()}}</span>
+            </span>
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Registriert seit</span>
+          <span class="info-value">18. Mai 2025</span>
+        </div>
+      </div>
+      
+      <ng-template #loading>
+        <div class="loading-container">
+          <mat-spinner diameter="40"></mat-spinner>
+          <p>Lade Profildaten...</p>
+        </div>
+      </ng-template>
+    </mat-card-content>
+    
+    <mat-divider></mat-divider>
+    
+    <mat-card-actions>
+      <button mat-raised-button color="primary">
+        <mat-icon>edit</mat-icon> Profil bearbeiten
+      </button>
       <button mat-stroked-button color="warn" (click)="logout()">
         <mat-icon>logout</mat-icon> Abmelden
       </button>
-    </div>
-  </div>  <ng-template #loading>
-    <p>Lade Profil...</p>
-  </ng-template>
-  <div *ngIf="error" style="color:#c62828;text-align:center;margin-top:1em;">{{error}}</div>
-</mat-card>
+    </mat-card-actions>
+  </mat-card>
+  
+  <div *ngIf="error" class="error-message">
+    <mat-icon>error</mat-icon>
+    <span>{{error}}</span>
+  </div>
+</div>
