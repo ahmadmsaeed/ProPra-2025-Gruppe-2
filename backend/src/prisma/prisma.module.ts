@@ -1,3 +1,7 @@
+/**
+ * Module for providing PrismaService as a global/shared provider.
+ * Allows PrismaService to be injected into other modules.
+ */
 import { Module } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 

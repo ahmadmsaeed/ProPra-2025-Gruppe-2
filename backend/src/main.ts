@@ -1,17 +1,26 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { ValidationPipe } from '@nestjs/common';
+import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-
-  // Enable CORS for requests from Angular frontend
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  
+  // Enable CORS
   app.enableCors({
-    origin: ['http://localhost:4200', 'http://localhost', 'http://frontend'],
-    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
+    origin: 'http://localhost:4200',
+    credentials: true
   });
 
-  await app.listen(process.env.PORT ?? 3000);  // Ensure the API listens on the correct port
+  // Enable validation
+  app.useGlobalPipes(new ValidationPipe());
+
+  // Configure file uploads
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/uploads/'
+  });
+
+  await app.listen(3000);
 }
 bootstrap();

@@ -4,6 +4,7 @@ const client_1 = require("@prisma/client");
 const bcrypt = require("bcryptjs");
 const prisma = new client_1.PrismaClient();
 async function main() {
+    await prisma.$executeRawUnsafe('TRUNCATE TABLE "Submission", "Exercise", "Database", "User" RESTART IDENTITY CASCADE;');
     try {
         await prisma.submission.deleteMany();
         await prisma.exercise.deleteMany();

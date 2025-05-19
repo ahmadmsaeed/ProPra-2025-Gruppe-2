@@ -8,6 +8,7 @@ import { TeacherDashboardComponent } from './teacher-dashboard.component';
 import { ExercisesComponent } from './exercises.component';
 import { TeacherExercisesComponent } from './teacher-exercises.component';
 import { LandingPageComponent } from './landing-page/landing-page.component';
+import { ExerciseManagementComponent } from './exercise-management/exercise-management.component';
 
 export const routes: Routes = [
   { path: '', component: LandingPageComponent },
@@ -20,4 +21,5 @@ export const routes: Routes = [
   { path: 'exercises', component: ExercisesComponent, canActivate: [authGuard] },
   { path: 'teacher/dashboard', component: TeacherDashboardComponent, canActivate: [authGuard] },
   { path: 'teacher/exercises', component: TeacherExercisesComponent, canActivate: [authGuard] },
+  { path: 'exercise-management', component: ExerciseManagementComponent, canActivate: [authGuard] },
 ];

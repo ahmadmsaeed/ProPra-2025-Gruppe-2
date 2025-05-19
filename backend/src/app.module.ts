@@ -1,9 +1,15 @@
+/**
+ * Root module for the SQL Learning Platform backend.
+ * Imports all feature modules and sets up global providers/controllers.
+ */
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AdminModule } from './admin/admin.module';
-import { PrismaModule } from './prisma/prisma.module';
+import { PrismaService } from './prisma/prisma.service';
 import { AuthModule } from './auth/auth.module';
+import { ExerciseModule } from './exercise/exercise.module';
+import { DatabaseModule } from './database/database.module';
+import { AdminModule } from './admin/admin.module';
 // Import new modules for SQL learning platform
 // These will need to be created later
 // import { ExercisesModule } from './exercises/exercises.module';
@@ -12,8 +18,9 @@ import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
-    PrismaModule,
     AuthModule,
+    ExerciseModule,
+    DatabaseModule,
     AdminModule,
     // These will be uncommented when the modules are created
     // ExercisesModule,
@@ -21,9 +28,6 @@ import { AuthModule } from './auth/auth.module';
     // SqlExecutionModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService
-    // Guards werden jetzt nur noch gezielt an Controllern/Methoden verwendet!
-  ],
+  providers: [AppService, PrismaService],
 })
 export class AppModule {}

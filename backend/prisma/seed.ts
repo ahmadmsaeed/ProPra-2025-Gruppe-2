@@ -4,6 +4,9 @@ import * as bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
+  // Reset all tables and their sequences (PostgreSQL)
+  await prisma.$executeRawUnsafe('TRUNCATE TABLE "Submission", "Exercise", "Database", "User" RESTART IDENTITY CASCADE;');
+
   // Clean the database first - use try/catch for tables that may not exist yet
   try {
     await prisma.submission.deleteMany();

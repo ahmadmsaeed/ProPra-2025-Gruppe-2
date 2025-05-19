@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { AuthService } from './auth.service';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
+import { RouterModule } from '@angular/router';
 
 @Component({
   selector: 'app-teacher-dashboard',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatButtonModule],
+  imports: [CommonModule, MatCardModule, MatButtonModule, RouterModule],
   template: `
     <div *ngIf="authService.isTeacher() || authService.isTutor(); else accessDenied">      <h1>Dozenten-Dashboard</h1>
       
@@ -20,7 +21,7 @@ import { MatButtonModule } from '@angular/material/button';
             <p>Erstellen und verwalten Sie SQL-Übungen für Ihre Studenten.</p>
           </mat-card-content>
           <mat-card-actions>
-            <button mat-button color="primary" routerLink="/teacher/exercises">ÜBUNGEN VERWALTEN</button>
+            <a mat-button color="primary" routerLink="/exercise-management">ÜBUNGEN VERWALTEN</a>
           </mat-card-actions>
         </mat-card>
         

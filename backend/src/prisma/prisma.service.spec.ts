@@ -1,3 +1,6 @@
+/**
+ * Unit test for PrismaService to ensure it is defined and injectable.
+ */
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from './prisma.service';
 

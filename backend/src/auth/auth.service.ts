@@ -65,4 +65,35 @@ export class AuthService {
     // No need to check isBlocked again here, guard does it.
     return dbUser;
   }
+
+  /**
+   * Aktualisiert Name und/oder E-Mail des Users.
+   */
+  async updateProfile(userId: number, dto: { name: string; email: string }) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Benutzer nicht gefunden');
+    // Optionally: check if email is changing and already taken
+    if (dto.email !== user.email) {
+      const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+      if (existing) throw new HttpException('E-Mail bereits vergeben', HttpStatus.BAD_REQUEST);
+    }
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { name: dto.name, email: dto.email },
+    });
+    return { id: updated.id, email: updated.email, name: updated.name, role: updated.role };
+  }
+
+  /**
+   * Ändert das Passwort des Users nach Überprüfung des aktuellen Passworts.
+   */
+  async changePassword(userId: number, dto: { currentPassword: string; newPassword: string }) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Benutzer nicht gefunden');
+    const isPasswordValid = await bcrypt.compare(dto.currentPassword, user.password);
+    if (!isPasswordValid) throw new UnauthorizedException('Das aktuelle Passwort ist falsch.');
+    const hash = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({ where: { id: userId }, data: { password: hash } });
+    return { success: true };
+  }
 }

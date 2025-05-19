@@ -36,4 +36,19 @@ export declare class AuthService {
         role: import(".prisma/client").$Enums.Role;
         isBlocked: boolean;
     }>;
+    updateProfile(userId: number, dto: {
+        name: string;
+        email: string;
+    }): Promise<{
+        id: number;
+        email: string;
+        name: string;
+        role: import(".prisma/client").$Enums.Role;
+    }>;
+    changePassword(userId: number, dto: {
+        currentPassword: string;
+        newPassword: string;
+    }): Promise<{
+        success: boolean;
+    }>;
 }

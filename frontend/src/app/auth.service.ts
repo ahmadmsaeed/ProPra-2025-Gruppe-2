@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, BehaviorSubject, tap } from 'rxjs';
 import { environment } from '../environments/environment';
+import { Router } from '@angular/router';
 
 export type UserRole = 'TEACHER' | 'TUTOR' | 'STUDENT';
 export interface User {
@@ -17,7 +18,7 @@ export class AuthService {
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   currentUser$ = this.currentUserSubject.asObservable();
 
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private router: Router) {
     const user = localStorage.getItem('user');
     if (user) this.currentUserSubject.next(JSON.parse(user));
   }
@@ -88,6 +89,7 @@ export class AuthService {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     this.currentUserSubject.next(null);
+    this.router.navigate(['/login']);
   }
 
   /**
@@ -102,5 +104,24 @@ export class AuthService {
    */
   isLoggedIn(): boolean {
     return !!this.getToken();
+  }
+
+  /**
+   * Aktualisiert das Profil (Name/E-Mail).
+   */
+  updateProfile(data: { name: string; email: string }): Observable<User> {
+    return this.http.post<User>(`${this.apiUrl}/update-profile`, data).pipe(
+      tap(user => {
+        localStorage.setItem('user', JSON.stringify(user));
+        this.currentUserSubject.next(user);
+      })
+    );
+  }
+
+  /**
+   * Ändert das Passwort.
+   */
+  changePassword(data: { currentPassword: string; newPassword: string }): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/change-password`, data);
   }
 }
