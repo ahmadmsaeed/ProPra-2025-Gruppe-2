@@ -82,7 +82,12 @@ export class ExerciseService implements IExerciseService {
     // If SQL file is provided, create a new database first
     if (sqlFile) {
       const fileName = `${Date.now()}-${sqlFile.originalname}`;
-      const filePath = path.join(process.cwd(), 'uploads', fileName);
+      const uploadsDir = path.join(process.cwd(), 'uploads');
+      // Ensure the uploads directory exists
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+      const filePath = path.join(uploadsDir, fileName);
       fs.writeFileSync(filePath, sqlFile.buffer);
       const sqlContent = fs.readFileSync(filePath, 'utf-8');
 
@@ -100,9 +105,12 @@ export class ExerciseService implements IExerciseService {
         }
       }
 
+      const baseName = path.basename(sqlFile.originalname, path.extname(sqlFile.originalname));
+      const uniqueDbName = `${baseName}-${Date.now()}`;
+
       const newDatabase = await this.prisma.database.create({
         data: {
-          name: `Database from ${sqlFile.originalname}`,
+          name: uniqueDbName,
           schema,
           seedData
         }
