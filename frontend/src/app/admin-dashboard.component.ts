@@ -11,23 +11,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthService, UserRole } from './auth.service';
 import { AdminService } from './admin.service';
 import { Observable, catchError, map, of, forkJoin } from 'rxjs';
-
-// Define a component for the user dialog that will be implemented later
-// This avoids the import error while we're still developing
-@Component({
-  selector: 'app-user-dialog',
-  standalone: true,
-  imports: [
-    CommonModule,
-    ReactiveFormsModule,
-    MatDialogModule,
-    MatButtonModule
-  ],
-  template: `<div>User Dialog Placeholder</div>`
-})
-export class UserDialogComponent {
-  // Will be implemented properly in a separate file
-}
+import { UserDialogComponent } from './user-dialog.component';
 
 interface User {
   id: number;
@@ -118,18 +102,12 @@ export class AdminDashboardComponent implements OnInit {
     });
   }
 
-  openAddUserDialog(role: 'STUDENT' | 'TUTOR'): void {
-    // For now we'll just show a simple alert
-    // The real implementation would use MatDialog to open UserDialogComponent
-    alert(`Add new ${role} functionality coming soon`);
-    
-    // When we implement the full dialog:
-    /*
+  openAddUserDialog(): void {
     const dialogRef = this.dialog.open(UserDialogComponent, {
       width: '400px',
-      data: { 
-        title: `Add New ${role.charAt(0) + role.slice(1).toLowerCase()}`,
-        user: { role: role },
+      data: {
+        title: 'Neuen Benutzer hinzufügen',
+        user: { role: 'STUDENT' },
         isEdit: false
       }
     });
@@ -138,28 +116,22 @@ export class AdminDashboardComponent implements OnInit {
       if (result) {
         this.http.post<User>('http://localhost:3000/admin/users', result).subscribe({
           next: () => {
-            this.snackBar.open(`${result.role.toLowerCase()} created successfully`, 'Close', { duration: 3000 });
-            this.loadData(); // Refresh data
+            this.snackBar.open('Benutzer erfolgreich erstellt', 'Schließen', { duration: 3000 });
+            this.loadData();
           },
-          error: (err) => this.handleError(`Failed to create ${result.role.toLowerCase()}`, err)
+          error: (err) => this.handleError('Fehler beim Erstellen des Benutzers', err)
         });
       }
     });
-    */
   }
 
   editUser(user: User): void {
-    // For now we'll just show a simple alert
-    alert(`Edit user ${user.name} functionality coming soon`);
-    
-    // When we implement the full dialog:
-    /*
     const dialogRef = this.dialog.open(UserDialogComponent, {
       width: '400px',
-      data: { 
-        title: `Edit User: ${user.name}`,
+      data: {
+        title: `Benutzer bearbeiten: ${user.name}`,
         user: { ...user },
-        isEdit: true 
+        isEdit: true
       }
     });
 
@@ -167,31 +139,24 @@ export class AdminDashboardComponent implements OnInit {
       if (result) {
         this.http.put<User>(`http://localhost:3000/admin/users/${user.id}`, result).subscribe({
           next: () => {
-            this.snackBar.open('User updated successfully', 'Close', { duration: 3000 });
-            this.loadData(); // Refresh data
+            this.snackBar.open('Benutzer erfolgreich aktualisiert', 'Schließen', { duration: 3000 });
+            this.loadData();
           },
-          error: (err) => this.handleError('Failed to update user', err)
+          error: (err) => this.handleError('Fehler beim Aktualisieren des Benutzers', err)
         });
       }
     });
-    */
   }
 
   deleteUser(userId: number): void {
-    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      // For demo purposes, just show a success message
-      this.snackBar.open('User deletion functionality coming soon', 'Close', { duration: 3000 });
-      
-      // When the backend is ready:
-      /*
+    if (confirm('Möchten Sie diesen Benutzer wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.')) {
       this.http.delete<void>(`http://localhost:3000/admin/users/${userId}`).subscribe({
         next: () => {
-          this.snackBar.open('User deleted successfully', 'Close', { duration: 3000 });
-          this.loadData(); // Refresh data
+          this.snackBar.open('Benutzer erfolgreich gelöscht', 'Schließen', { duration: 3000 });
+          this.loadData();
         },
-        error: (err) => this.handleError('Failed to delete user', err)
+        error: (err) => this.handleError('Fehler beim Löschen des Benutzers', err)
       });
-      */
     }
   }
 

@@ -7,11 +7,8 @@
 
   <!-- Add New Student Button -->
   <div class="actions-panel" *ngIf="!loading">
-    <button mat-raised-button color="primary" (click)="openAddUserDialog('STUDENT')">
-      <mat-icon>person_add</mat-icon> Neuen Studenten hinzufügen
-    </button>
-    <button mat-raised-button color="primary" (click)="openAddUserDialog('TUTOR')" style="margin-left: 10px;">
-      <mat-icon>person_add</mat-icon> Neuen Tutor hinzufügen
+    <button mat-raised-button color="primary" (click)="openAddUserDialog()">
+      <mat-icon>person_add</mat-icon> Neuen Benutzer hinzufügen
     </button>
   </div>
   <mat-card *ngIf="!loading">
