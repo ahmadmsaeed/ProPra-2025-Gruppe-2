@@ -1,12 +1,12 @@
 import { Routes } from '@angular/router';
-import { RegisterComponent } from './register.component';
-import { LoginComponent } from './login.component';
-import { ProfileComponent } from './profile.component';
+import { RegisterComponent } from './register/register.component';
+import { LoginComponent } from './login/login.component';
+import { ProfileComponent } from './profile/profile.component';
 import { authGuard } from './auth.guard';
-import { AdminDashboardComponent } from './admin-dashboard.component';
-import { TeacherDashboardComponent } from './teacher-dashboard.component';
-import { ExercisesComponent } from './exercises.component';
-import { TeacherExercisesComponent } from './teacher-exercises.component';
+import { AdminDashboardComponent } from './admin-dashboard/admin-dashboard.component';
+import { TeacherDashboardComponent } from './teacher-dashboard/teacher-dashboard.component';
+import { ExercisesComponent } from './exercises/exercises.component';
+import { TeacherExercisesComponent } from './teacher-exercises/teacher-exercises.component';
 import { LandingPageComponent } from './landing-page/landing-page.component';
 
 export const routes: Routes = [

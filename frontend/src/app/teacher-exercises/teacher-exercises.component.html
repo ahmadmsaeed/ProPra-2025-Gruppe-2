@@ -1,0 +1,21 @@
+<div *ngIf="authService.isTeacher() || authService.isTutor(); else accessDenied">      
+  <h1>Übungen verwalten</h1>
+  
+  <div class="actions">
+    <button mat-raised-button color="primary">
+      <mat-icon>add</mat-icon> Neue Übung erstellen
+    </button>
+  </div>
+  
+  <div class="exercises-container">
+    <mat-card class="no-exercises-card">
+      <mat-card-content>
+        <p>Keine Übungen vorhanden. Erstellen Sie eine neue Übung mit dem Button oben.</p>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>
+
+<ng-template #accessDenied>
+  <p style="color: red;">Zugriff verweigert. Sie müssen ein Dozent oder Tutor sein, um diese Seite anzuzeigen.</p>
+</ng-template> 

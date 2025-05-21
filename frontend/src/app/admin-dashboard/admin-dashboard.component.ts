@@ -8,10 +8,10 @@ import { MatCardModule } from '@angular/material/card';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { AuthService, UserRole } from './auth.service';
-import { AdminService } from './admin.service';
+import { AuthService, UserRole } from '../auth.service';
+import { AdminService } from '../admin.service';
 import { Observable, catchError, map, of, forkJoin } from 'rxjs';
-import { UserDialogComponent } from './user-dialog.component';
+import { UserDialogComponent } from '../user-dialog.component';
 
 interface User {
   id: number;
@@ -37,16 +37,9 @@ interface User {
     ReactiveFormsModule,
   ],
   templateUrl: './admin-dashboard.component.html',
-  styles: [`
-    .actions-panel {
-      margin-bottom: 20px;
-      display: flex;
-      gap: 10px;
-    }
-  `]
+  styleUrls: ['./admin-dashboard.component.scss']
 })
 export class AdminDashboardComponent implements OnInit {
-
   teachers: User[] = [];
   students: User[] = [];
   loading = true;
@@ -95,9 +88,8 @@ export class AdminDashboardComponent implements OnInit {
         this.students = students;
         this.loading = false;
       },
-      // Errors are caught individually in pipes, forkJoin completes even if one fails
       complete: () => {
-        this.loading = false; // Ensure loading is false even if requests error out
+        this.loading = false;
       }
     });
   }
@@ -164,7 +156,7 @@ export class AdminDashboardComponent implements OnInit {
     this.http.patch<User>(`http://localhost:3000/admin/users/${userId}/block`, {}).subscribe({
       next: () => {
         this.snackBar.open('User blocked successfully.', 'Close', { duration: 3000 });
-        this.refreshUserData(userId, true); // Refresh UI
+        this.refreshUserData(userId, true);
       },
       error: (err) => this.handleError('Failed to block user', err),
     });
@@ -174,23 +166,21 @@ export class AdminDashboardComponent implements OnInit {
     this.http.patch<User>(`http://localhost:3000/admin/users/${userId}/unblock`, {}).subscribe({
       next: () => {
         this.snackBar.open('User unblocked successfully.', 'Close', { duration: 3000 });
-        this.refreshUserData(userId, false); // Refresh UI
+        this.refreshUserData(userId, false);
       },
       error: (err) => this.handleError('Failed to unblock user', err),
     });
   }
 
   private refreshUserData(userId: number, isBlocked: boolean): void {
-    // Optimistic UI update: Update the local data without reloading everything
     this.teachers = this.teachers.map(u => u.id === userId ? { ...u, isBlocked } : u);
     this.students = this.students.map(u => u.id === userId ? { ...u, isBlocked } : u);
-    // Alternatively, call this.loadData() for a full refresh
   }
 
   private handleError(message: string, error: HttpErrorResponse): void {
     console.error(message, error);
     this.error = `${message}: ${error.error?.message || error.statusText}`;
     this.snackBar.open(this.error, 'Close', { duration: 5000 });
-    this.loading = false; // Ensure loading stops on error
+    this.loading = false;
   }
-}
+} 

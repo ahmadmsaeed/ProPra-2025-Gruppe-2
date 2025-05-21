@@ -1,22 +1,22 @@
-<mat-card style="max-width:400px;margin:2em auto;">
-  <h2 style="text-align:center">Registrieren</h2>
+<mat-card>
+  <h2>Registrieren</h2>
   <form (ngSubmit)="onSubmit()" #registerForm="ngForm" autocomplete="off">
-    <mat-form-field appearance="outline" style="width:100%;margin-bottom:1em;">
+    <mat-form-field appearance="outline">
       <mat-label>Email</mat-label>
       <input matInput name="email" [(ngModel)]="form.email" required type="email" placeholder="z.B. max@mustermann.de" />
     </mat-form-field>
-    <mat-form-field appearance="outline" style="width:100%;margin-bottom:1em;">
+    <mat-form-field appearance="outline">
       <mat-label>Name</mat-label>
       <input matInput name="name" [(ngModel)]="form.name" required placeholder="Dein Name" />
     </mat-form-field>
-    <mat-form-field appearance="outline" style="width:100%;margin-bottom:1em;">
+    <mat-form-field appearance="outline">
       <mat-label>Passwort</mat-label>
       <input matInput name="password" [(ngModel)]="form.password" required type="password" placeholder="Mind. 6 Zeichen" />
     </mat-form-field>
-    <div style="text-align:center;margin-top:1.5em;">
+    <div class="actions">
       <button mat-raised-button color="primary" type="submit" [disabled]="registerForm.invalid">Registrieren</button>
     </div>
   </form>
-  <div *ngIf="error" style="color:#c62828;text-align:center;margin-top:1em;">{{error}}</div>
-  <div *ngIf="success" style="color:#388e3c;text-align:center;margin-top:1em;">Registrierung erfolgreich! Du kannst dich jetzt einloggen.</div>
-</mat-card>
+  <div *ngIf="error" class="error-message">{{error}}</div>
+  <div *ngIf="success" class="success-message">Registrierung erfolgreich! Du kannst dich jetzt einloggen.</div>
+</mat-card> 
