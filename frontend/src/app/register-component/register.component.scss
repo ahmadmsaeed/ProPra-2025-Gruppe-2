@@ -1,0 +1,32 @@
+/* register.component.scss */
+
+.register-card {
+  max-width: 400px;
+  margin: 2em auto;
+}
+
+.register-title {
+  text-align: center;
+}
+
+.register-field {
+  width: 100%;
+  margin-bottom: 1em;
+}
+
+.register-button-container {
+  text-align: center;
+  margin-top: 1.5em;
+}
+
+.register-error {
+  color: #c62828;
+  text-align: center;
+  margin-top: 1em;
+}
+
+.register-success {
+  color: #388e3c;
+  text-align: center;
+  margin-top: 1em;
+}

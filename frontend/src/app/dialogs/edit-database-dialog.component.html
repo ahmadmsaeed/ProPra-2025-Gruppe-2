@@ -1,0 +1,26 @@
+﻿<h2 mat-dialog-title>Datenbank bearbeiten</h2>
+<mat-dialog-content>
+  <mat-form-field appearance="fill" class="full-width">
+    <mat-label>Name der Datenbank</mat-label>
+    <input matInput [(ngModel)]="database.name" required>
+  </mat-form-field>
+  
+  <div class="file-upload">
+    <p>SQL-Datei ersetzen (optional):</p>
+    <div class="upload-area" (click)="fileInput.click()" matTooltip="Klicke, um eine SQL-Datei auszuwählen">
+      <mat-icon>cloud_upload</mat-icon>
+      <p>{{ selectedFile ? selectedFile.name : "Klicke hier, um eine SQL-Datei hochzuladen" }}</p>
+    </div>
+    <input 
+      #fileInput 
+      type="file" 
+      accept=".sql" 
+      style="display: none;" 
+      (change)="onFileSelected($event)"
+    />
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="cancel()" matTooltip="Änderungen verwerfen">Abbrechen</button>
+  <button mat-raised-button color="primary" (click)="save()" [disabled]="!database.name" matTooltip="Änderungen speichern">Speichern</button>
+</mat-dialog-actions>

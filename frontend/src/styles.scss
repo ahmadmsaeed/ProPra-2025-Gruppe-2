@@ -3,7 +3,87 @@
 
 /* You can add global styles to this file, and also import other style files */
 
-body {
-  font-family: Roboto, Arial, sans-serif;
-  background: #fafafa;
+/* Use a system font stack for better performance */
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  /* Support smooth scrolling */
+  scroll-behavior: smooth;
+  /* Prevent content shifts */
+  overflow-y: scroll;
+}
+
+/* Material UI theme customization */
+.mat-mdc-snack-bar-container {
+  &.error-snackbar {
+    --mdc-snackbar-container-color: #f44336;
+    --mat-snackbar-button-color: white;
+    --mdc-snackbar-supporting-text-color: white;
+  }
+  
+  &.success-snackbar {
+    --mdc-snackbar-container-color: #4caf50;
+    --mat-snackbar-button-color: white;
+    --mdc-snackbar-supporting-text-color: white;
+  }
+  
+  &.warning-snackbar {
+    --mdc-snackbar-container-color: #ff9800;
+    --mat-snackbar-button-color: white;
+    --mdc-snackbar-supporting-text-color: white;
+  }
+}
+
+/* Form styling */
+.form-field {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+/* Table styling */
+.mat-mdc-table {
+  width: 100%;
+  background-color: transparent;
+}
+
+/* Card styling */
+.mat-mdc-card {
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Button spacing */
+.mat-mdc-button + .mat-mdc-button {
+  margin-left: 0.5rem;
+}
+
+/* Responsive layout helpers */
+.responsive-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .responsive-hide-mobile {
+    display: none !important;
+  }
+}
+
+/* Focus visible styles for better accessibility */
+:focus-visible {
+  outline: 2px solid #1976d2;
+  outline-offset: 2px;
+}
+
+/* Loading indicators */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
 }

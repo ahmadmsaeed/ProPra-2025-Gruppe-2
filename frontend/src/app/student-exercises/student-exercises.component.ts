@@ -2,15 +2,21 @@
  * Component for the student exercises page
  * Shows exercise cards and allows SQL query practice with feedback
  */
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Exercise } from '../models/exercise.model';
 import { ExerciseService } from '../services/exercise.service';
 import { SubmissionService } from '../services/submission.service';
+import { SqlImportService } from '../services/sql-import.service';
 import { Submission } from '../models/submission.model';
 import { environment } from '../../environments/environment';
+import { Subject, Observable, of, throwError, BehaviorSubject, combineLatest, timer } from 'rxjs';
+import { 
+  takeUntil, catchError, finalize, tap, debounceTime, 
+  distinctUntilChanged, share, switchMap, filter
+} from 'rxjs/operators';
 
 // Angular Material imports
 import { MatCardModule } from '@angular/material/card';
@@ -24,6 +30,29 @@ import { MatTableModule } from '@angular/material/table';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatSelectModule } from '@angular/material/select';
+import { MatTooltipModule } from '@angular/material/tooltip';
+
+// Interfaces for better type safety
+interface DatabaseTable {
+  tableName: string;
+  columns: TableColumn[];
+}
+
+interface TableColumn {
+  name: string;
+  type: string;
+  constraints?: string;
+}
+
+// Component state interface
+interface ComponentState {
+  isLoading: boolean;
+  isExecuting: boolean;
+  hasError: boolean;
+  errorMessage: string | null;
+  isLoadingTableData: boolean;
+}
 
 @Component({
   selector: 'app-student-exercises',
@@ -41,61 +70,129 @@ import { MatDividerModule } from '@angular/material/divider';
     MatTableModule,
     MatTabsModule,
     MatExpansionModule,
-    MatDividerModule
+    MatDividerModule,
+    MatSelectModule,
+    MatTooltipModule
   ],
   templateUrl: './student-exercises.component.html',
-  styleUrls: ['./student-exercises.component.scss']
+  styleUrls: ['./student-exercises.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class StudentExercisesComponent implements OnInit {
+export class StudentExercisesComponent implements OnInit, OnDestroy {
+  private destroy$ = new Subject<void>();
+  private userQuerySubject = new BehaviorSubject<string>('');
+  private tableDataCache = new Map<string, any[]>();
+  
+  // Component state management
+  private stateSubject = new BehaviorSubject<ComponentState>({
+    isLoading: true,
+    isExecuting: false,
+    hasError: false,
+    errorMessage: null,
+    isLoadingTableData: false
+  });
+  
+  // Observable of the current state that can be used in the template
+  readonly state$ = this.stateSubject.asObservable();
+  
+  // UI state
   activeTab: 'schema' | 'data' = 'schema';
   
+  // Exercises data
   exercises: Exercise[] = [];
   selectedExercise: Exercise | null = null;
   userQuery: string = '';
-  isLoading: boolean = true;
-  isExecuting: boolean = false;
   lastSubmission: Submission | null = null;
   queryResults: any[] = [];
   resultColumns: string[] = [];
+  hasExecutedQuery: boolean = false;
+  executionTime: number = 0;
   
-  databaseTables: any[] = [];
+  // Database schema & data
+  databaseTables: DatabaseTable[] = [];
   selectedTable: string | null = null;
   tableData: any[] = [];
   tableColumns: string[] = [];
-  isLoadingTableData: boolean = false;
+  tableSeedData: string[] = [];
+
+  // Cache for database schemas to avoid unnecessary API calls
+  private schemaCache: Record<number, {schema: string, seedData?: string}> = {};
 
   constructor(
     private exerciseService: ExerciseService,
     private submissionService: SubmissionService,
+    private sqlImportService: SqlImportService,
     private snackBar: MatSnackBar,
-    private http: HttpClient
+    private http: HttpClient,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
     this.loadExercises();
+    
+    // Comment out the auto-execute feature for now
+    /*
+    // Set up debounced query execution for auto-preview
+    this.userQuerySubject.pipe(
+      takeUntil(this.destroy$),
+      filter(() => !!this.selectedExercise), // Only when an exercise is selected
+      debounceTime(environment.performance.defaultDebounceTime || 500),
+      distinctUntilChanged(),
+      // Don't execute empty queries or if already executing
+      filter(query => !!query && !this.stateSubject.value.isExecuting)
+    ).subscribe(query => {
+      if (environment.features.enableDebugTools) {
+        // Auto-execute query if debug tools enabled and query is valid
+        this.executeQueryInternal(query, true);
+      }
+    });
+    */
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  // Update component state
+  private updateState(partialState: Partial<ComponentState>): void {
+    this.stateSubject.next({
+      ...this.stateSubject.value,
+      ...partialState
+    });
+    this.cdr.markForCheck();
   }
 
   loadExercises(): void {
-    this.isLoading = true;
-    this.exerciseService.getExercises().subscribe({
-      next: (exercises) => {
-        this.exercises = exercises;
-        this.isLoading = false;
-      },
-      error: (error) => {
-        console.error('Error loading exercises:', error);
-        this.showMessage('Fehler beim Laden der Übungen');
-        this.isLoading = false;
-      }
-    });
+    this.updateState({ isLoading: true, hasError: false, errorMessage: null });
+    
+    this.exerciseService.getExercises()
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.updateState({ isLoading: false });
+        })
+      )
+      .subscribe({
+        next: (exercises) => {
+          this.exercises = exercises;
+          this.cdr.markForCheck();
+        },
+        error: (error: HttpErrorResponse) => {
+          this.handleError(error, 'Error loading exercises');
+        }
+      });
   }
 
   selectExercise(exercise: Exercise): void {
     this.selectedExercise = exercise;
     this.userQuery = exercise.initialQuery || '';
+    this.userQuerySubject.next(this.userQuery);
     this.lastSubmission = null;
     this.queryResults = [];
     this.resultColumns = [];
+    this.hasExecutedQuery = false;
+    this.executionTime = 0;
     
     this.databaseTables = [];
     this.selectedTable = null;
@@ -103,25 +200,56 @@ export class StudentExercisesComponent implements OnInit {
     this.tableColumns = [];
     
     this.loadDatabaseSchema(exercise.databaseSchemaId);
+    this.cdr.markForCheck();
   }
 
   loadDatabaseSchema(databaseId: number): void {
-    const apiUrl = `${environment.apiUrl}/sql-import/databases/${databaseId}`;
-    this.http.get<any>(apiUrl).subscribe({
-      next: (database) => {
-        if (database && database.schema) {
-          this.parseDatabaseSchema(database.schema);
-        }
-      },
-      error: (error) => {
-        console.error('Error loading database schema:', error);
-        this.showMessage('Fehler beim Laden des Datenbankschemas');
+    // Check cache first
+    if (this.schemaCache[databaseId]) {
+      this.parseDatabaseSchema(this.schemaCache[databaseId].schema);
+      if (this.schemaCache[databaseId].seedData) {
+        this.processTableSeedData(this.schemaCache[databaseId].seedData);
       }
-    });
+      return;
+    }
+    
+    this.updateState({ isLoading: true, hasError: false });
+    
+    this.sqlImportService.getDatabase(databaseId)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.updateState({ isLoading: false });
+        }),
+        catchError((error: HttpErrorResponse) => {
+          this.handleError(error, 'Error loading database schema');
+          return throwError(() => error);
+        })
+      )
+      .subscribe({
+        next: (database) => {
+          if (database && database.schema) {
+            // Cache the result
+            this.schemaCache[databaseId] = {
+              schema: database.schema,
+              seedData: database.seedData
+            };
+            
+            this.parseDatabaseSchema(database.schema);
+            
+            // Process seed data if available
+            if (database.seedData) {
+              this.processTableSeedData(database.seedData);
+            }
+            
+            this.cdr.markForCheck();
+          }
+        }
+      });
   }
 
   parseDatabaseSchema(schema: string): void {
-    const tables: any[] = [];
+    const tables: DatabaseTable[] = [];
     
     const tableRegex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["']?(\w+)["']?\s*\(([\s\S]*?)\);/gi;
     let match;
@@ -145,8 +273,8 @@ export class StudentExercisesComponent implements OnInit {
     }
   }
 
-  parseColumns(tableDefinition: string): any[] {
-    const columns: any[] = [];
+  parseColumns(tableDefinition: string): TableColumn[] {
+    const columns: TableColumn[] = [];
     
     const columnLines = this.splitDefinitionLines(tableDefinition);
     
@@ -206,143 +334,299 @@ export class StudentExercisesComponent implements OnInit {
     if (!this.selectedExercise) return;
     
     this.selectedTable = tableName;
-    this.isLoadingTableData = true;
+    
+    // Check cache first
+    const cacheKey = `${this.selectedExercise.databaseSchemaId}-${tableName}`;
+    if (this.tableDataCache.has(cacheKey)) {
+      const cachedData = this.tableDataCache.get(cacheKey);
+      this.tableData = cachedData || [];
+      this.tableColumns = this.tableData.length > 0 ? Object.keys(this.tableData[0]) : [];
+      this.tableSeedData = this.findSeedDataForTable(tableName);
+      this.cdr.markForCheck();
+      return;
+    }
+    
+    this.updateState({ isLoadingTableData: true });
     
     const query = `SELECT * FROM ${tableName}`;
-    const apiUrl = `${environment.apiUrl}/sql-import/query`;
-    
-    this.http.post(apiUrl, {
-      databaseId: this.selectedExercise.databaseSchemaId,
-      query
-    }).subscribe({
-      next: (result: any) => {
-        this.isLoadingTableData = false;
-        
-        if (Array.isArray(result) && result.length > 0) {
-          this.tableData = result;
-          this.tableColumns = Object.keys(result[0]);
-        } else {
-          this.tableData = [];
-          this.tableColumns = [];
+    this.sqlImportService.executeQuery(this.selectedExercise.databaseSchemaId, query, true)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.updateState({ isLoadingTableData: false });
+        }),
+        catchError((error: HttpErrorResponse) => {
+          this.handleError(error, 'Error loading table data');
+          return of([]);
+        })
+      )
+      .subscribe({
+        next: (result: any) => {
+          if (Array.isArray(result) && result.length > 0) {
+            this.tableData = result;
+            this.tableColumns = Object.keys(result[0]);
+            // Cache the result
+            this.tableDataCache.set(cacheKey, result);
+          } else {
+            this.tableData = [];
+            this.tableColumns = [];
+          }
+          
+          // Find the selected table in our database tables to show its seed data
+          const selectedTableData = this.databaseTables.find(t => t.tableName === tableName);
+          if (selectedTableData) {
+            // Find the seed data for this table
+            this.tableSeedData = this.findSeedDataForTable(tableName);
+          }
+          
+          this.cdr.markForCheck();
         }
-      },
-      error: (error) => {
-        console.error('Error loading table data:', error);
-        
-        // Extract the error message
-        let errorMessage = error.error?.message || 'Unbekannter Fehler';
-        
-        // Check for "relation does not exist" errors
-        if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-          errorMessage = `Die Tabelle "${tableName}" existiert noch nicht. Bitte überprüfen Sie das Schema und reichen Sie eine korrekte Lösung ein.`;
-        }
-        
-        this.showMessage(`Fehler beim Laden der Tabellendaten: ${errorMessage}`);
-        this.isLoadingTableData = false;
-        this.tableData = [];
-        this.tableColumns = [];
-      }
-    });
+      });
   }
 
   backToExercises(): void {
     this.selectedExercise = null;
     this.userQuery = '';
+    this.userQuerySubject.next('');
     this.lastSubmission = null;
     this.queryResults = [];
     this.resultColumns = [];
+    this.hasExecutedQuery = false;
+    this.executionTime = 0;
     this.databaseTables = [];
     this.selectedTable = null;
     this.tableData = [];
     this.tableColumns = [];
+    this.cdr.markForCheck();
+  }
+  
+  onQueryInput(event: Event): void {
+    const target = event.target as HTMLTextAreaElement;
+    this.userQuery = target.value;
+    this.userQuerySubject.next(this.userQuery);
+    
+    // Reset the lastSubmission when user modifies the query
+    this.lastSubmission = null;
   }
 
   executeQuery(): void {
-    // This is now just a placeholder - the query execution is handled directly in submitSolution
-    console.log('Query execution is now handled in the submitSolution method');
+    if (!this.selectedExercise || !this.userQuery) return;
+    
+    // Reset the lastSubmission when executing a new query
+    this.lastSubmission = null;
+    
+    this.executeQueryInternal(this.userQuery, false);
+  }
+  
+  private executeQueryInternal(query: string, isPreview: boolean = false): void {
+    if (!this.selectedExercise) return;
+    
+    this.updateState({ 
+      isExecuting: true, 
+      hasError: false,
+      errorMessage: null
+    });
+    this.hasExecutedQuery = true;
+    
+    const startTime = performance.now();
+    
+    this.sqlImportService.executeQuery(this.selectedExercise.databaseSchemaId, query, false)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.updateState({ isExecuting: false });
+          const endTime = performance.now();
+          this.executionTime = Math.round(endTime - startTime);
+        }),
+        catchError((error: HttpErrorResponse) => {
+          this.handleError(error, 'Error executing query');
+          return throwError(() => error);
+        })
+      )
+      .subscribe({
+        next: (result: any) => {
+          if (Array.isArray(result)) {
+            this.queryResults = result;
+            this.resultColumns = result.length > 0 ? Object.keys(result[0]) : [];
+            if (result.length === 0 && !isPreview) {
+              this.showMessage("The query was executed successfully, but returned no results.", "info-snackbar");
+            }
+          } else {
+            this.queryResults = [];
+            this.resultColumns = [];
+            if (!isPreview) {
+              this.showMessage("The query was executed successfully with no result set returned.", "info-snackbar");
+            }
+          }
+          this.cdr.markForCheck();
+        }
+      });
   }
 
   submitSolution(): void {
     if (!this.selectedExercise || !this.userQuery) return;
 
-    console.log('Submitting solution for exercise:', this.selectedExercise.id);
-    console.log('Query:', this.userQuery);
-
-    this.isExecuting = true;
+    this.updateState({ 
+      isExecuting: true, 
+      hasError: false,
+      errorMessage: null
+    });
+    this.hasExecutedQuery = true;
     
     // First, try executing the query to make sure it's valid
-    const apiUrl = `${environment.apiUrl}/sql-import/query`;
-    this.http.post(apiUrl, {
-      databaseId: this.selectedExercise.databaseSchemaId,
-      query: this.userQuery
-    }).subscribe({
-      next: (result: any) => {
-        console.log('Query execution successful:', result);
-        
-        // Now submit the solution
-        this.submissionService.submitSolution(this.selectedExercise!.id, this.userQuery).subscribe({
-          next: (submission) => {
-            console.log('Submission successful:', submission);
-            this.lastSubmission = submission;
-            this.isExecuting = false;
+    this.sqlImportService.executeQuery(this.selectedExercise.databaseSchemaId, this.userQuery, false)
+      .pipe(
+        takeUntil(this.destroy$),
+        catchError((error: HttpErrorResponse) => {
+          this.updateState({ isExecuting: false });
+          this.handleError(error, 'Error executing query');
+          return throwError(() => error);
+        })
+      )
+      .subscribe({
+        next: (result: any) => {
+          if (Array.isArray(result)) {
+            this.queryResults = result;
+            this.resultColumns = result.length > 0 ? Object.keys(result[0]) : [];
             
-            // Store the query results for display
-            if (Array.isArray(result) && result.length > 0) {
-              this.queryResults = result;
-              this.resultColumns = Object.keys(result[0]);
-            } else if (Array.isArray(result) && result.length === 0) {
-              this.queryResults = [];
-              this.resultColumns = [];
-              this.showMessage('Die Abfrage wurde erfolgreich ausgeführt, aber es wurden keine Ergebnisse zurückgegeben');
-            } else {
-              this.queryResults = [{ result: 'Abfrage erfolgreich ausgeführt' }];
-              this.resultColumns = ['result'];
-            }
-          },
-          error: (error: any) => {
-            console.error('Error submitting solution:', error);
-            this.showMessage('Fehler beim Einreichen der Lösung: ' + (error.error?.message || error.message || 'Unbekannter Fehler'));
-            this.isExecuting = false;
+            // Now send the submission
+            this.sendSubmission();
+          } else {
+            this.queryResults = [];
+            this.resultColumns = [];
+            this.updateState({ isExecuting: false });
+            this.showMessage("The query was executed successfully with no result set returned.", "info-snackbar");
+            this.cdr.markForCheck();
           }
-        });
-      },
-      error: (error: any) => {
-        console.error('Error executing query:', error);
-        
-        // Extract the specific error message
-        let errorMessage = error.error?.message || error.message || 'Unbekannter Fehler';
-        
-        // Check for "relation does not exist" errors
-        if (errorMessage.includes('relation') && errorMessage.includes('does not exist')) {
-          errorMessage = `Die Tabelle existiert nicht: ${errorMessage}`;
         }
-        
-        // Create a fake submission object to display the error in the same UI as normal feedback
-        this.lastSubmission = {
-          id: 0,
-          query: this.userQuery,
-          isCorrect: false,
-          feedback: 'SQL-Syntaxfehler: ' + errorMessage,
-          studentId: 0,
-          exerciseId: this.selectedExercise?.id || 0,
-          createdAt: new Date()
-        };
-        
-        // No popup for SQL errors - they will be shown in the feedback section
-        this.isExecuting = false;
-        
-        // Clear any previous results
-        this.queryResults = [];
-        this.resultColumns = [];
-      }
+      });
+  }
+
+  private sendSubmission(): void {
+    if (!this.selectedExercise) return;
+    
+    this.submissionService.submitSolution(this.selectedExercise.id, this.userQuery)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.updateState({ isExecuting: false });
+        }),
+        catchError((error: HttpErrorResponse) => {
+          this.handleError(error, 'Error submitting solution');
+          return throwError(() => error);
+        })
+      )
+      .subscribe({
+        next: (submission: Submission) => {
+          this.lastSubmission = submission;
+          
+          if (submission.isCorrect) {
+            // Show success message with green color
+            this.showMessage('Glückwunsch! Deine Lösung ist korrekt.', 'success-snackbar');
+            
+            // Optional: Add confetti or animation for correct solutions
+            // document.querySelectorAll('.submission-feedback.correct').forEach(el => el.classList.add('animate-success'));
+          } else {
+            // Show error message with red color
+            this.showMessage('Deine Lösung ist leider nicht korrekt. Versuche es nochmal!', 'warning-snackbar');
+          }
+          
+          // Scroll to the feedback
+          setTimeout(() => {
+            const feedbackElement = document.querySelector('.submission-feedback');
+            if (feedbackElement) {
+              feedbackElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }, 100);
+          
+          this.cdr.markForCheck();
+        }
+      });
+  }
+  
+  resetQuery(): void {
+    if (!this.selectedExercise) return;
+    this.userQuery = this.selectedExercise.initialQuery || '';
+    this.userQuerySubject.next(this.userQuery);
+    this.cdr.markForCheck();
+  }
+
+  private handleError(error: HttpErrorResponse, contextMessage: string): void {
+    console.error(contextMessage, error);
+    
+    let errorMessage = `${contextMessage}: `;
+    if (error.status === 0) {
+      errorMessage += 'Network error. Please check your internet connection.';
+    } else if (error.error?.message) {
+      errorMessage += error.error.message;
+    } else {
+      errorMessage += error.message || 'An unknown error occurred';
+    }
+    
+    this.updateState({
+      hasError: true,
+      errorMessage: errorMessage
+    });
+    
+    this.showMessage(errorMessage, 'error-snackbar');
+  }
+
+  showMessage(message: string, panelClass: string = ''): void {
+    let action = 'Schließen';
+    
+    // Set different icons or actions based on message type
+    if (panelClass === 'success-snackbar') {
+      action = '✓';
+    } else if (panelClass === 'warning-snackbar') {
+      action = '✗';
+    } else if (panelClass === 'info-snackbar') {
+      action = 'OK';
+    }
+    
+    this.snackBar.open(message, action, {
+      duration: 5000,
+      panelClass: panelClass ? [panelClass] : []
     });
   }
 
-  showMessage(message: string): void {
-    this.snackBar.open(message, 'Schließen', {
-      duration: 3000,
-      horizontalPosition: 'center',
-      verticalPosition: 'bottom'
+  processTableSeedData(seedData: string): void {
+    // Split SQL statements and filter for INSERT statements
+    const statements = seedData.split(';').filter(s => s.trim().length > 0);
+    
+    // Mapping from table name to array of INSERT statements
+    const tableSeedMap: Record<string, string[]> = {};
+    
+    // Process each statement
+    statements.forEach(statement => {
+      const trimmed = statement.trim();
+      if (trimmed.toUpperCase().startsWith('INSERT INTO')) {
+        // Extract table name
+        const tableNameMatch = trimmed.match(/INSERT\s+INTO\s+(?:["'])?(\w+)(?:["'])?/i);
+        if (tableNameMatch && tableNameMatch[1]) {
+          const tableName = tableNameMatch[1];
+          
+          if (!tableSeedMap[tableName]) {
+            tableSeedMap[tableName] = [];
+          }
+          
+          tableSeedMap[tableName].push(trimmed);
+        }
+      }
     });
+    
+    // Store the mapping for later use
+    this.tableSeedDataMap = tableSeedMap;
+    
+    // If a table is already selected, update its seed data
+    if (this.selectedTable) {
+      this.tableSeedData = this.findSeedDataForTable(this.selectedTable);
+      this.cdr.markForCheck();
+    }
+  }
+  
+  private tableSeedDataMap: Record<string, string[]> = {};
+  
+  private findSeedDataForTable(tableName: string): string[] {
+    return this.tableSeedDataMap[tableName] || [];
   }
 } 
