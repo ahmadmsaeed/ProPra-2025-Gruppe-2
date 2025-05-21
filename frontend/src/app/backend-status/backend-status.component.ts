@@ -23,4 +23,4 @@ export class BackendStatusComponent {
       error: () => this.status = 'down'
     });
   }
-}
+} 
