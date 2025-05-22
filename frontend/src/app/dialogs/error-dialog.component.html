@@ -1,0 +1,20 @@
+﻿<h2 mat-dialog-title class="error-title">
+  <mat-icon color="warn">error</mat-icon>
+  {{ data.title }}
+</h2>
+<mat-dialog-content>
+  <div *ngIf="isStringArray(data.message); else singleMessage">
+    <p *ngFor="let msg of data.message">{{ msg }}</p>
+  </div>
+  <ng-template #singleMessage>
+    <ng-container *ngIf="hasNewlines(data.message); else plainMessage">
+      <p *ngFor="let line of getMessageLines(data.message)">{{ line }}</p>
+    </ng-container>
+    <ng-template #plainMessage>
+      <p>{{ data.message }}</p>
+    </ng-template>
+  </ng-template>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()" matTooltip="Dialog schließen">{{ data.buttonText }}</button>
+</mat-dialog-actions>

@@ -27,6 +27,9 @@ let AdminController = class AdminController {
     async listTeachers() {
         return this.adminService.listTeachers();
     }
+    async listTutors() {
+        return this.adminService.listTutors();
+    }
     async listStudents() {
         return this.adminService.listStudents();
     }
@@ -34,7 +37,9 @@ let AdminController = class AdminController {
         return this.adminService.createUser(createUserDto);
     }
     async updateUser(userId, updateUserDto, req) {
-        if (req.user.sub === userId && updateUserDto.role && updateUserDto.role !== client_1.Role.TEACHER) {
+        if (req.user.sub === userId &&
+            updateUserDto.role &&
+            updateUserDto.role !== client_1.Role.TEACHER) {
             throw new common_1.ForbiddenException('Sie können Ihre eigene Rolle nicht ändern.');
         }
         return this.adminService.updateUser(userId, updateUserDto);
@@ -47,7 +52,7 @@ let AdminController = class AdminController {
     }
     async blockUser(userId, req) {
         if (req.user.sub === userId) {
-            throw new common_1.ForbiddenException('Sie können sich nicht selbst sperren.');
+            throw new common_1.ForbiddenException('Sie können Ihr eigenes Konto nicht sperren.');
         }
         return this.adminService.blockUser(userId);
     }
@@ -62,6 +67,12 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "listTeachers", null);
+__decorate([
+    (0, common_1.Get)('tutors'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "listTutors", null);
 __decorate([
     (0, common_1.Get)('students'),
     __metadata("design:type", Function),
@@ -110,7 +121,7 @@ __decorate([
 exports.AdminController = AdminController = __decorate([
     (0, common_1.Controller)('admin'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    (0, roles_decorator_1.Roles)('TEACHER'),
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER),
     __metadata("design:paramtypes", [admin_service_1.AdminService])
 ], AdminController);
 //# sourceMappingURL=admin.controller.js.map

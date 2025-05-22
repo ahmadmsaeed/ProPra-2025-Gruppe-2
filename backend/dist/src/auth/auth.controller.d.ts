@@ -25,9 +25,24 @@ export declare class AuthController {
     }>;
     me(req: any): Promise<{
         id: number;
+        name: string;
+        email: string;
+        role: import(".prisma/client").$Enums.Role;
+        isBlocked: boolean;
+    }>;
+    updateProfile(req: any, dto: {
+        name: string;
+        email: string;
+    }): Promise<{
+        id: number;
         email: string;
         name: string;
         role: import(".prisma/client").$Enums.Role;
-        isBlocked: boolean;
+    }>;
+    changePassword(req: any, dto: {
+        currentPassword: string;
+        newPassword: string;
+    }): Promise<{
+        success: boolean;
     }>;
 }

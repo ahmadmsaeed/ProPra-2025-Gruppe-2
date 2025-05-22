@@ -1,0 +1,32 @@
+﻿<h2 mat-dialog-title>Datenbank: {{ data.name }}</h2>
+<mat-dialog-content>
+  <div class="info-section">
+    <div class="info-item">
+      <h3>Erstellt:</h3>
+      <p>{{ data.createdAt | date:"dd.MM.yyyy, HH:mm:ss" }}</p>
+    </div>
+
+    <div class="info-item">
+      <h3>Aktualisiert:</h3>
+      <p>{{ data.updatedAt | date:"dd.MM.yyyy, HH:mm:ss" }}</p>
+    </div>
+
+    <div class="info-item">
+      <h3>Hochgeladen von:</h3>
+      <p>{{ data.uploadedBy || "Unbekannt" }}</p>
+    </div>
+
+    <div class="info-item">
+      <h3>Schema:</h3>
+      <pre>{{ data.schema || "Keine Schema-Daten verfügbar" }}</pre>
+    </div>
+
+    <div class="info-item">
+      <h3>SeedData:</h3>
+      <pre>{{ data.seedData || "Keine Seed-Daten verfügbar" }}</pre>
+    </div>
+  </div>
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button (click)="close()" matTooltip="Dialog schließen">Schließen</button>
+</mat-dialog-actions>

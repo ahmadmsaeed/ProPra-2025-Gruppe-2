@@ -1,0 +1,40 @@
+{
+  "name": "propra-2025-gruppe-2",
+  "version": "1.0.0",
+  "description": "SQL Learning Platform for ProPra 2025",
+  "scripts": {
+    "start": "concurrently \"npm run start:backend\" \"npm run start:frontend\"",
+    "start:backend": "cd backend && npm run start:dev",
+    "start:frontend": "cd frontend && npm run start",
+    "install:all": "npm install && npm run install:backend && npm run install:frontend",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm run test",
+    "test:frontend": "cd frontend && npm run test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ProPra-2025-Gruppe-2/sql-learning-platform.git"
+  },
+  "keywords": [
+    "sql",
+    "learning",
+    "education",
+    "angular",
+    "nestjs",
+    "postgresql"
+  ],
+  "author": "ProPra 2025 Group 2",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ProPra-2025-Gruppe-2/sql-learning-platform/issues"
+  },
+  "homepage": "https://github.com/ProPra-2025-Gruppe-2/sql-learning-platform#readme",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+} 

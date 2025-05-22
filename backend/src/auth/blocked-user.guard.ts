@@ -1,4 +1,9 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service'; // Adjust path as needed
 
@@ -15,9 +20,12 @@ export class BlockedUserGuard implements CanActivate {
       const dbUser = await this.prisma.user.findUnique({
         where: { id: user.sub },
         select: { isBlocked: true },
-      });      if (dbUser?.isBlocked) {
+      });
+      if (dbUser?.isBlocked) {
         // Throw ForbiddenException if user is blocked
-        throw new ForbiddenException('Ihr Konto ist gesperrt. Bitte kontaktieren Sie den Support.');
+        throw new ForbiddenException(
+          'Ihr Konto ist gesperrt. Bitte kontaktieren Sie den Support.',
+        );
       }
     }
     // If no user attached (guard runs before JWT?) or user not blocked, allow access

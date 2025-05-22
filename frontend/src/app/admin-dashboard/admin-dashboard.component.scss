@@ -1,5 +1,26 @@
-.actions-panel {
+﻿.actions-panel {
   margin-bottom: 20px;
   display: flex;
   gap: 10px;
-} 
+}
+
+:host ::ng-deep .mat-mdc-card {
+  margin-bottom: 24px;
+}
+
+.mat-column-actions {
+  width: 150px;
+  white-space: nowrap;
+}
+
+.mat-column-actions button {
+  display: inline-flex;
+  margin-right: 4px;
+}
+
+.action-buttons-container {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+}

@@ -1,0 +1,18 @@
+﻿.success-title {
+  display: flex;
+  align-items: center;
+  color: #4CAF50;
+}
+
+.success-title mat-icon {
+  margin-right: 8px;
+}
+
+mat-dialog-content {
+  min-width: 300px;
+}
+
+p {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+}

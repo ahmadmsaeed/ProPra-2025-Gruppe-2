@@ -10,9 +10,13 @@ exports.AppModule = void 0;
 const common_1 = require("@nestjs/common");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
-const admin_module_1 = require("./admin/admin.module");
-const prisma_module_1 = require("./prisma/prisma.module");
 const auth_module_1 = require("./auth/auth.module");
+const exercise_module_1 = require("./exercise/exercise.module");
+const admin_module_1 = require("./admin/admin.module");
+const sql_import_module_1 = require("./sql-import/sql-import.module");
+const common_module_1 = require("./common/common.module");
+const submissions_module_1 = require("./submissions/submissions.module");
+const prisma_module_1 = require("./prisma/prisma.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -21,12 +25,14 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             prisma_module_1.PrismaModule,
             auth_module_1.AuthModule,
+            exercise_module_1.ExerciseModule,
             admin_module_1.AdminModule,
+            sql_import_module_1.SqlImportModule,
+            common_module_1.CommonModule,
+            submissions_module_1.SubmissionsModule,
         ],
         controllers: [app_controller_1.AppController],
-        providers: [
-            app_service_1.AppService
-        ],
+        providers: [app_service_1.AppService],
     })
 ], AppModule);
 //# sourceMappingURL=app.module.js.map

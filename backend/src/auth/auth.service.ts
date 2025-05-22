@@ -1,4 +1,11 @@
-import { Injectable, HttpException, HttpStatus, NotFoundException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -9,15 +16,23 @@ import { User } from '@prisma/client';
  */
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService, private jwt: JwtService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwt: JwtService,
+  ) {}
 
   /**
    * Registriert einen neuen User mit gehashtem Passwort.
    */
   async register(dto: { email: string; password: string; name: string }) {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (existing) {
-      throw new HttpException('E-Mail bereits vergeben', HttpStatus.BAD_REQUEST);
+      throw new HttpException(
+        'E-Mail bereits vergeben',
+        HttpStatus.BAD_REQUEST,
+      );
     }
     const hash = await bcrypt.hash(dto.password, 10);
     const user = await this.prisma.user.create({
@@ -30,13 +45,18 @@ export class AuthService {
    * Login: Validiert User und gibt ein JWT zurück.
    */
   async login(dto: { email: string; password: string }) {
-    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });    if (!user) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (!user) {
       throw new UnauthorizedException('Ungültige Anmeldedaten');
     }
 
     // Check if user is blocked BEFORE checking password
     if (user.isBlocked) {
-        throw new ForbiddenException('Ihr Konto ist gesperrt. Bitte kontaktieren Sie den Support.');
+      throw new ForbiddenException(
+        'Ihr Konto ist gesperrt. Bitte kontaktieren Sie den Support.',
+      );
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
@@ -47,7 +67,12 @@ export class AuthService {
     const payload = { email: user.email, sub: user.id, role: user.role };
     return {
       access_token: this.jwt.sign(payload),
-      user: { id: user.id, name: user.name, email: user.email, role: user.role }, // Return basic user info
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      }, // Return basic user info
     };
   }
   /**
@@ -56,13 +81,71 @@ export class AuthService {
   async me(user: { sub: number; email: string; role: string }) {
     // User is already authenticated by JwtAuthGuard and checked by BlockedUserGuard
     // We can fetch fresh data if needed, but guards already did the checks.
-    const dbUser = await this.prisma.user.findUnique({ 
-      where: { id: user.sub }, 
-      select: { id: true, email: true, name: true, role: true, isBlocked: true } 
+    const dbUser = await this.prisma.user.findUnique({
+      where: { id: user.sub },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        isBlocked: true,
+      },
     });
-    
+
     if (!dbUser) throw new NotFoundException('Benutzer nicht gefunden'); // Should not happen if JWT is valid
     // No need to check isBlocked again here, guard does it.
     return dbUser;
+  }
+
+  /**
+   * Aktualisiert Name und/oder E-Mail des Users.
+   */
+  async updateProfile(userId: number, dto: { name: string; email: string }) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Benutzer nicht gefunden');
+    // Optionally: check if email is changing and already taken
+    if (dto.email !== user.email) {
+      const existing = await this.prisma.user.findUnique({
+        where: { email: dto.email },
+      });
+      if (existing)
+        throw new HttpException(
+          'E-Mail bereits vergeben',
+          HttpStatus.BAD_REQUEST,
+        );
+    }
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { name: dto.name, email: dto.email },
+    });
+    return {
+      id: updated.id,
+      email: updated.email,
+      name: updated.name,
+      role: updated.role,
+    };
+  }
+
+  /**
+   * Ändert das Passwort des Users nach Überprüfung des aktuellen Passworts.
+   */
+  async changePassword(
+    userId: number,
+    dto: { currentPassword: string; newPassword: string },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Benutzer nicht gefunden');
+    const isPasswordValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.password,
+    );
+    if (!isPasswordValid)
+      throw new UnauthorizedException('Das aktuelle Passwort ist falsch.');
+    const hash = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hash },
+    });
+    return { success: true };
   }
 }

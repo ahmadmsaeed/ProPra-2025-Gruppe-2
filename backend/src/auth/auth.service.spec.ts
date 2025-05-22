@@ -24,20 +24,32 @@ describe('AuthService', () => {
 
   it('should throw if user not found', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
-    await expect(service.login({ email: 'a@b.de', password: 'pw' }))
-      .rejects.toThrow(HttpException);
+    await expect(
+      service.login({ email: 'a@b.de', password: 'pw' }),
+    ).rejects.toThrow(HttpException);
   });
 
   it('should throw if password is wrong', async () => {
-    prisma.user.findUnique.mockResolvedValue({ email: 'a@b.de', password: 'hashed', id: 1, name: 'Test' });
+    prisma.user.findUnique.mockResolvedValue({
+      email: 'a@b.de',
+      password: 'hashed',
+      id: 1,
+      name: 'Test',
+    });
     // bcrypt.compare will be false
     jest.spyOn(require('bcryptjs'), 'compare').mockResolvedValue(false);
-    await expect(service.login({ email: 'a@b.de', password: 'pw' }))
-      .rejects.toThrow(HttpException);
+    await expect(
+      service.login({ email: 'a@b.de', password: 'pw' }),
+    ).rejects.toThrow(HttpException);
   });
 
   it('should return token and user if login is correct', async () => {
-    prisma.user.findUnique.mockResolvedValue({ email: 'a@b.de', password: 'hashed', id: 1, name: 'Test' });
+    prisma.user.findUnique.mockResolvedValue({
+      email: 'a@b.de',
+      password: 'hashed',
+      id: 1,
+      name: 'Test',
+    });
     jest.spyOn(require('bcryptjs'), 'compare').mockResolvedValue(true);
     jwt.sign.mockReturnValue('jwt-token');
     const result = await service.login({ email: 'a@b.de', password: 'pw' });
