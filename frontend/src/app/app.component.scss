@@ -8,6 +8,17 @@
   right: 0;
   z-index: 1000;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  min-height: 56px !important;
+  height: 56px !important;
+
+  ::ng-deep {
+    .mdc-button {
+      height: 56px;
+      line-height: 56px;
+      border-radius: 0;
+      padding: 0 16px;
+    }
+  }
 }
 
 .nav-container {
@@ -17,20 +28,31 @@
   height: 100%;
   display: flex;
   align-items: center;
-  padding: 0 2rem;
+  padding: 0 16px;
 }
 
 .nav-brand {
   display: flex;
   align-items: center;
-  font-size: 1.2rem;
-  font-weight: 500;
-  color: white;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  color: white !important;
   text-decoration: none;
-  margin-right: 2rem;
+  margin-right: 24px;
+  height: 56px;
+  padding: 0 16px;
+  white-space: nowrap;
 
   mat-icon {
-    margin-right: 0.5rem;
+    margin-right: 8px;
+    font-size: 20px !important;
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  span {
+    font-size: 14px !important;
+    font-weight: 500;
   }
 }
 
@@ -38,12 +60,17 @@
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 4px;
 
   a {
-    color: white;
+    color: white !important;
     opacity: 0.9;
     transition: opacity 0.2s ease;
+    height: 56px;
+    font-size: 14px !important;
+    padding: 0 16px;
+    font-weight: normal !important;
+    white-space: nowrap;
 
     &:hover {
       opacity: 1;
@@ -51,7 +78,11 @@
     }
 
     mat-icon {
-      margin-right: 0.5rem;
+      margin-right: 8px;
+      font-size: 18px !important;
+      width: 18px !important;
+      height: 18px !important;
+      vertical-align: middle;
     }
   }
 }
@@ -59,50 +90,104 @@
 .auth-section {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 8px;
+  margin-left: auto;
+  height: 56px;
 
-  .register-btn {
-    color: white;
+  .theme-toggle {
+    color: white !important;
     opacity: 0.9;
+    min-width: 40px !important;
+    width: 40px !important;
+    height: 40px !important;
+    padding: 8px !important;
+    margin: 0 4px;
+    border-radius: 50% !important;
 
     &:hover {
       opacity: 1;
       background: rgba(255, 255, 255, 0.1);
     }
+
+    mat-icon {
+      margin: 0;
+      font-size: 20px !important;
+      width: 20px !important;
+      height: 20px !important;
+      line-height: 20px !important;
+    }
+  }
+
+  .register-btn {
+    color: white !important;
+    opacity: 0.9;
+    font-size: 14px !important;
+    font-weight: normal !important;
+    padding: 0 16px;
+    height: 56px;
+    white-space: nowrap;
+
+    &:hover {
+      opacity: 1;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    mat-icon {
+      margin-right: 8px;
+      font-size: 18px !important;
+      width: 18px !important;
+      height: 18px !important;
+      vertical-align: middle;
+    }
   }
 
   .user-menu-btn {
-    color: white;
+    color: white !important;
     opacity: 0.9;
+    font-size: 14px !important;
+    font-weight: normal !important;
+    padding: 0 16px;
+    height: 56px;
+    white-space: nowrap;
     
     &:hover {
       opacity: 1;
       background: rgba(255, 255, 255, 0.1);
     }
 
-    mat-icon:first-child {
-      margin-right: 0.5rem;
-    }
+    mat-icon {
+      &:first-child {
+        margin-right: 8px;
+        font-size: 18px !important;
+        width: 18px !important;
+        height: 18px !important;
+        vertical-align: middle;
+      }
 
-    mat-icon:last-child {
-      margin-left: 0.5rem;
+      &:last-child {
+        margin-left: 4px;
+        font-size: 18px !important;
+        width: 18px !important;
+        height: 18px !important;
+        vertical-align: middle;
+      }
     }
   }
 }
 
 // Add padding to main content to account for fixed navbar
 .main-container {
-  padding-top: 64px; // Height of toolbar
+  padding-top: 56px; // Height of toolbar
   max-width: 1200px;
   margin: 0 auto;
-  padding-left: 2rem;
-  padding-right: 2rem;
+  padding-left: 16px;
+  padding-right: 16px;
 }
 
 // Responsive adjustments
 @media (max-width: 768px) {
   .nav-container {
-    padding: 0 1rem;
+    padding: 0 8px;
   }
 
   .nav-links {
@@ -114,7 +199,7 @@
   }
 
   .main-container {
-    padding-left: 1rem;
-    padding-right: 1rem;
+    padding-left: 8px;
+    padding-right: 8px;
   }
 }

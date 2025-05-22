@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { trigger, transition, style, animate } from '@angular/animations';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCardModule } from '@angular/material/card';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -10,7 +11,12 @@ import { CommonModule } from '@angular/common';
   templateUrl: './landing-page.component.html',
   styleUrls: ['./landing-page.component.scss'],
   standalone: true,
-  imports: [CommonModule, MatIconModule, MatButtonModule],
+  imports: [
+    CommonModule,
+    MatIconModule,
+    MatButtonModule,
+    MatCardModule
+  ],
   animations: [
     trigger('fadeIn', [
       transition(':enter', [

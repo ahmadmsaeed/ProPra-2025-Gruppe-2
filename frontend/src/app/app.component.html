@@ -47,6 +47,11 @@
 
     <!-- Auth Section -->
     <div class="auth-section">
+      <!-- Theme Toggle -->
+      <button mat-icon-button (click)="toggleTheme()" class="theme-toggle">
+        <mat-icon>{{ (themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode' }}</mat-icon>
+      </button>
+
       <ng-container *ngIf="!authService.isLoggedIn()">
         <a mat-button routerLink="/register" class="register-btn">
           <mat-icon>person_add</mat-icon>

@@ -5,18 +5,92 @@
 
 .file-upload {
   margin: 16px 0;
+  padding: 16px;
+  border: 2px dashed var(--border-color);
+  border-radius: 4px;
+  background-color: var(--surface-2);
+  transition: border-color 0.2s, background-color 0.2s;
+
+  &:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(var(--primary-color-rgb), 0.05);
+  }
+
+  label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  input {
+    margin-bottom: 8px;
+    color: var(--text-primary);
+    
+    &::file-selector-button {
+      background-color: var(--surface-1);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+
+      &:hover {
+        background-color: var(--surface-2);
+      }
+    }
+  }
+
+  small {
+    display: block;
+    color: var(--text-secondary);
+  }
 }
 
-.file-upload label {
+// Dialog content styles
+:host {
   display: block;
-  margin-bottom: 8px;
-}
+  
+  h2 {
+    color: var(--text-primary);
+  }
 
-.file-upload input {
-  margin-bottom: 8px;
-}
+  mat-dialog-content {
+    color: var(--text-primary);
+  }
 
-.file-upload small {
-  display: block;
-  color: #666;
+  // Form field styles
+  ::ng-deep {
+    .mat-mdc-form-field {
+      .mat-mdc-form-field-label {
+        color: var(--text-secondary);
+      }
+
+      .mat-mdc-input-element {
+        color: var(--text-primary);
+      }
+
+      .mat-mdc-form-field-underline {
+        background-color: var(--border-color);
+      }
+
+      textarea {
+        background-color: var(--surface-2);
+        border-radius: 4px;
+        padding: 8px;
+        margin: 4px 0;
+      }
+    }
+
+    // Select field styles
+    .mat-mdc-select-value {
+      color: var(--text-primary);
+    }
+
+    .mat-mdc-select-arrow {
+      color: var(--text-secondary);
+    }
+  }
 }

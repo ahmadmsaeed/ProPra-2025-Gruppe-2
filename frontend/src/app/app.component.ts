@@ -5,8 +5,10 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { BackendStatusComponent } from './backend-status/backend-status.component';
-import { AuthService } from './auth.service';
+import { AuthService } from './services/auth.service';
+import { ThemeService } from './services/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -18,15 +20,114 @@ import { AuthService } from './auth.service';
     MatButtonModule,
     MatIconModule,
     MatMenuModule,
+    MatTooltipModule,
     BackendStatusComponent
   ],
-  templateUrl: './app.component.html',
+  template: `
+    <mat-toolbar class="nav-toolbar">
+      <div class="nav-container">
+        <!-- Logo/Home -->
+        <a mat-button routerLink="/" class="nav-brand">
+          <mat-icon>school</mat-icon>
+          <span>SQL Learning</span>
+        </a>
+
+        <!-- Navigation Links -->
+        <div class="nav-links">
+          <!-- Student Links -->
+          <ng-container *ngIf="authService.isLoggedIn() && authService.isStudent()">
+            <a mat-button routerLink="/exercises">
+              <mat-icon>code</mat-icon>
+              SQL-Übungen
+            </a>
+          </ng-container>
+
+          <!-- Tutor Links -->
+          <ng-container *ngIf="authService.isLoggedIn() && authService.isTutor()">
+            <a mat-button routerLink="/teacher/dashboard">
+              <mat-icon>dashboard</mat-icon>
+              Tutor-Dashboard
+            </a>
+            <a mat-button routerLink="/teacher/exercises">
+              <mat-icon>assignment</mat-icon>
+              Übungen verwalten
+            </a>
+          </ng-container>
+
+          <!-- Teacher Links -->
+          <ng-container *ngIf="authService.isLoggedIn() && authService.isTeacher()">
+            <a mat-button routerLink="/teacher/dashboard">
+              <mat-icon>dashboard</mat-icon>
+              Dozenten-Dashboard
+            </a>
+            <a mat-button routerLink="/teacher/exercises">
+              <mat-icon>assignment</mat-icon>
+              Übungen verwalten
+            </a>
+            <a mat-button routerLink="/admin/dashboard">
+              <mat-icon>admin_panel_settings</mat-icon>
+              Benutzerverwaltung
+            </a>
+          </ng-container>
+        </div>
+
+        <!-- Auth Section -->
+        <div class="auth-section">
+          <!-- Theme Toggle -->
+          <button mat-icon-button (click)="toggleTheme()" class="theme-toggle">
+            <mat-icon>{{ (themeService.isDarkTheme$ | async) ? 'light_mode' : 'dark_mode' }}</mat-icon>
+          </button>
+
+          <ng-container *ngIf="!authService.isLoggedIn()">
+            <a mat-button routerLink="/register" class="register-btn">
+              <mat-icon>person_add</mat-icon>
+              Registrieren
+            </a>
+            <a mat-raised-button color="primary" routerLink="/login">
+              <mat-icon>login</mat-icon>
+              Anmelden
+            </a>
+          </ng-container>
+
+          <ng-container *ngIf="authService.isLoggedIn()">
+            <button mat-button [matMenuTriggerFor]="userMenu" class="user-menu-btn">
+              <mat-icon>account_circle</mat-icon>
+              {{ authService.getRole() }}
+              <mat-icon>arrow_drop_down</mat-icon>
+            </button>
+            <mat-menu #userMenu="matMenu">
+              <a mat-menu-item routerLink="/profile">
+                <mat-icon>person</mat-icon>
+                <span>Profil</span>
+              </a>
+              <button mat-menu-item (click)="onLogout()">
+                <mat-icon>exit_to_app</mat-icon>
+                <span>Abmelden</span>
+              </button>
+            </mat-menu>
+          </ng-container>
+        </div>
+      </div>
+    </mat-toolbar>
+
+    <div class="main-container">
+      <app-backend-status></app-backend-status>
+      <router-outlet></router-outlet>
+    </div>
+  `,
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent {
-  constructor(public authService: AuthService) {}
+  constructor(
+    public authService: AuthService,
+    public themeService: ThemeService
+  ) {}
 
   onLogout() {
     this.authService.logout();
+  }
+
+  toggleTheme() {
+    this.themeService.toggleTheme();
   }
 }

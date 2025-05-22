@@ -12,7 +12,8 @@ import { CreateExerciseDialogComponent } from './create-exercise-dialog.componen
 import { EditExerciseDialogComponent } from './edit-exercise-dialog.component';
 import { ViewExerciseDialogComponent } from './view-exercise-dialog.component';
 
-@Component({  selector: 'app-exercise-management',
+@Component({
+  selector: 'app-exercise-management',
   standalone: true,
   imports: [
     CommonModule,
@@ -20,7 +21,10 @@ import { ViewExerciseDialogComponent } from './view-exercise-dialog.component';
     MatButtonModule,
     MatIconModule,
     MatDialogModule,
-    MatTableModule
+    MatTableModule,
+    CreateExerciseDialogComponent,
+    EditExerciseDialogComponent,
+    ViewExerciseDialogComponent
   ],
   templateUrl: './exercise-management.component.html',
   styleUrls: ['./exercise-management.component.scss']

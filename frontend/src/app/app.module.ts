@@ -10,10 +10,14 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MAT_RIPPLE_GLOBAL_OPTIONS, RippleGlobalOptions } from '@angular/material/core';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 import { AppComponent } from './app-component/app.component';
 import { FilterByStatusPipe } from './filter-by-status.pipe';
 import { jwtInterceptor } from './jwt.interceptor';
+import { ThemeService } from './services/theme.service';
 
 // Global ripple configuration
 const globalRippleConfig: RippleGlobalOptions = {
@@ -40,6 +44,9 @@ const globalRippleConfig: RippleGlobalOptions = {
     MatTabsModule,
     MatButtonModule,
     MatIconModule,
+    MatToolbarModule,
+    MatMenuModule,
+    MatTooltipModule,
     
     FormsModule
   ],
@@ -52,7 +59,8 @@ const globalRippleConfig: RippleGlobalOptions = {
       provide: HTTP_INTERCEPTORS, 
       useFactory: () => jwtInterceptor, 
       multi: true 
-    }
+    },
+    ThemeService
   ],
   bootstrap: [AppComponent]
 })
