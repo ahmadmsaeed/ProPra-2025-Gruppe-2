@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SqlImportService } from '../sql-import/sql-import.service';
-import { User } from '@prisma/client';
+import { User } from '../types/models';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IExerciseService } from './interfaces/exercise.service.interface';
@@ -92,12 +92,13 @@ export class ExerciseService implements IExerciseService {
         // Use the SqlImportService to create a database from the SQL file
         const sqlContent = sqlFile.buffer.toString('utf-8');
         const baseName = sqlFile.originalname.replace(/\.sql$/i, '');
-        
-        const newDatabase = await this.sqlImportService.createDatabaseFromSqlContent(
-          sqlContent,
-          baseName,
-          authorId
-        );
+
+        const newDatabase =
+          await this.sqlImportService.createDatabaseFromSqlContent(
+            sqlContent,
+            baseName,
+            authorId,
+          );
 
         // Create the exercise with the new database
         return this.prisma.exercise.create({

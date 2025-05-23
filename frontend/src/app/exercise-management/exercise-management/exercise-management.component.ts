@@ -5,12 +5,12 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
 import { MatTableModule } from '@angular/material/table';
-import { AuthService } from '../services/auth.service';
-import { ExerciseService } from '../services/exercise.service';
-import { Exercise } from '../models/exercise.model';
-import { CreateExerciseDialogComponent } from './create-exercise-dialog.component';
-import { EditExerciseDialogComponent } from './edit-exercise-dialog.component';
-import { ViewExerciseDialogComponent } from './view-exercise-dialog.component';
+import { AuthService } from '../../services/auth.service';
+import { ExerciseService } from '../../services/exercise.service';
+import { Exercise } from '../../models/exercise.model';
+import { CreateExerciseDialogComponent } from '../create-exercise-dialog/create-exercise-dialog.component';
+import { EditExerciseDialogComponent } from '../edit-exercise-dialog/edit-exercise-dialog.component';
+import { ViewExerciseDialogComponent } from '../view-exercise-dialog/view-exercise-dialog.component';
 
 @Component({  selector: 'app-exercise-management',
   standalone: true,

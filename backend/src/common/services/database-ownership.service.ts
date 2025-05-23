@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { Role } from '@prisma/client';
+import { Role } from '../../types/models';
 
 @Injectable()
 export class DatabaseOwnershipService {
@@ -47,14 +47,15 @@ export class DatabaseOwnershipService {
       select: {
         id: true,
         authorId: true,
-      } as any, // Cast as any since authorId may not be in the type definition
+      },
     });
 
     if (!database) {
       throw new NotFoundException(`Database with ID ${databaseId} not found`);
     }
 
-    return userId === (database as any).authorId; // Cast as any since authorId may not be in the type definition
+    // Need to check if authorId exists before comparing
+    return database.authorId === userId;
   }
 
   /**

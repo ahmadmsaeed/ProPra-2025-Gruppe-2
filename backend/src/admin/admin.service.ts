@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role, User } from '@prisma/client';
+import { Role, User } from '../types/models';
 import * as bcrypt from 'bcryptjs';
 
 export interface CreateUserDto {
@@ -37,24 +37,27 @@ export class AdminService {
   };
 
   async listTeachers(): Promise<Omit<User, 'password'>[]> {
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: { role: Role.TEACHER },
       select: this.userSelect,
     });
+    return users as unknown as Omit<User, 'password'>[];
   }
 
   async listTutors(): Promise<Omit<User, 'password'>[]> {
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: { role: Role.TUTOR },
       select: this.userSelect,
     });
+    return users as unknown as Omit<User, 'password'>[];
   }
 
   async listStudents(): Promise<Omit<User, 'password'>[]> {
-    return this.prisma.user.findMany({
+    const users = await this.prisma.user.findMany({
       where: { role: Role.STUDENT },
       select: this.userSelect,
     });
+    return users as unknown as Omit<User, 'password'>[];
   }
 
   async createUser(dto: CreateUserDto): Promise<Omit<User, 'password'>> {
@@ -68,13 +71,15 @@ export class AdminService {
 
     const hashedPassword = await bcrypt.hash(dto.password, 12);
 
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         ...dto,
         password: hashedPassword,
       },
       select: this.userSelect,
     });
+
+    return user as unknown as Omit<User, 'password'>;
   }
 
   async updateUser(
@@ -104,11 +109,13 @@ export class AdminService {
       data.password = await bcrypt.hash(data.password, 12);
     }
 
-    return this.prisma.user.update({
+    const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data,
       select: this.userSelect,
     });
+
+    return updatedUser as unknown as Omit<User, 'password'>;
   }
 
   async deleteUser(userId: number): Promise<Omit<User, 'password'>> {
@@ -124,10 +131,12 @@ export class AdminService {
       throw new ForbiddenException('Teacher accounts cannot be deleted');
     }
 
-    return this.prisma.user.delete({
+    const deletedUser = await this.prisma.user.delete({
       where: { id: userId },
       select: this.userSelect,
     });
+
+    return deletedUser as unknown as Omit<User, 'password'>;
   }
 
   async blockUser(userId: number): Promise<Omit<User, 'password'>> {
@@ -143,11 +152,13 @@ export class AdminService {
       throw new ForbiddenException('Teacher accounts cannot be blocked');
     }
 
-    return this.prisma.user.update({
+    const blockedUser = await this.prisma.user.update({
       where: { id: userId },
       data: { isBlocked: true },
       select: this.userSelect,
     });
+
+    return blockedUser as unknown as Omit<User, 'password'>;
   }
 
   async unblockUser(userId: number): Promise<Omit<User, 'password'>> {
@@ -159,10 +170,12 @@ export class AdminService {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    return this.prisma.user.update({
+    const unblockedUser = await this.prisma.user.update({
       where: { id: userId },
       data: { isBlocked: false },
       select: this.userSelect,
     });
+
+    return unblockedUser as unknown as Omit<User, 'password'>;
   }
 }

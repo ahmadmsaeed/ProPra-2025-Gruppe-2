@@ -3,6 +3,10 @@ import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { HttpException } from '@nestjs/common';
+import * as bcryptjs from 'bcryptjs';
+
+// Add type assertion to fix the TypeScript errors
+type BcryptCompare = (s: string, hash: string) => Promise<boolean>;
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -36,8 +40,10 @@ describe('AuthService', () => {
       id: 1,
       name: 'Test',
     });
-    // bcrypt.compare will be false
-    jest.spyOn(require('bcryptjs'), 'compare').mockResolvedValue(false);
+    // Use import syntax for bcryptjs with correct type assertion
+    jest
+      .spyOn(bcryptjs, 'compare')
+      .mockImplementation(() => Promise.resolve(false));
     await expect(
       service.login({ email: 'a@b.de', password: 'pw' }),
     ).rejects.toThrow(HttpException);
@@ -50,7 +56,9 @@ describe('AuthService', () => {
       id: 1,
       name: 'Test',
     });
-    jest.spyOn(require('bcryptjs'), 'compare').mockResolvedValue(true);
+    jest
+      .spyOn(bcryptjs, 'compare')
+      .mockImplementation(() => Promise.resolve(true));
     jwt.sign.mockReturnValue('jwt-token');
     const result = await service.login({ email: 'a@b.de', password: 'pw' });
     expect(result).toEqual({

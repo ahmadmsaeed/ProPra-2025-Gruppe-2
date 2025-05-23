@@ -1,4 +1,4 @@
-export interface Database {
+export interface SqlDatabase {
   id: number;
   name: string;
   schema: string;
@@ -9,4 +9,4 @@ export interface Database {
   uploadedBy?: string;
 }
 
-export default Database; 
+export default SqlDatabase; 

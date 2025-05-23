@@ -24,19 +24,21 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     // Get the original exception response
     const errorResponse = exception.getResponse();
-    
+
     // Create a standardized error structure
     const errorDetails = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
       method: request.method,
-      message: typeof errorResponse === 'object' && 'message' in errorResponse
-        ? errorResponse['message']
-        : exception.message,
-      error: typeof errorResponse === 'object' && 'error' in errorResponse
-        ? errorResponse['error']
-        : 'Unknown error',
+      message:
+        typeof errorResponse === 'object' && 'message' in errorResponse
+          ? errorResponse['message']
+          : exception.message,
+      error:
+        typeof errorResponse === 'object' && 'error' in errorResponse
+          ? errorResponse['error']
+          : 'Unknown error',
     };
 
     // Log the error details for server-side tracking
@@ -49,4 +51,4 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // Send the standardized error response
     response.status(status).json(errorDetails);
   }
-} 
+}

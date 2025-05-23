@@ -10,23 +10,24 @@ export class ContainerDatabaseClientService {
     @Inject(forwardRef(() => DockerContainerService))
     private readonly dockerService: DockerContainerService,
   ) {}
-  
+
   /**
    * Execute a query on a specific container
    */
   async executeQuery(sessionId: string, query: string): Promise<any> {
     try {
       // Get the container's connection string
-      const connectionString = this.dockerService.getConnectionString(sessionId);
-      
+      const connectionString =
+        this.dockerService.getConnectionString(sessionId);
+
       // Create a client to connect to the container
       const client = new Client({
         connectionString,
       });
-      
+
       // Connect to the database
       await client.connect();
-      
+
       try {
         // Execute the query
         const result = await client.query(query);
@@ -40,30 +41,35 @@ export class ContainerDatabaseClientService {
       throw error;
     }
   }
-  
+
   /**
    * Initialize a container database with schema and seed data
    */
-  async initializeDatabase(sessionId: string, schema: string, seedData: string): Promise<void> {
+  async initializeDatabase(
+    sessionId: string,
+    schema: string,
+    seedData: string,
+  ): Promise<void> {
     try {
       // Get the container's connection string
-      const connectionString = this.dockerService.getConnectionString(sessionId);
-      
+      const connectionString =
+        this.dockerService.getConnectionString(sessionId);
+
       // Create a client to connect to the container
       const client = new Client({
         connectionString,
       });
-      
+
       // Connect to the database
       await client.connect();
-      
+
       try {
         // Execute schema creation
         if (schema && schema.trim()) {
           this.logger.log(`Executing schema on container ${sessionId}`);
           await client.query(schema);
         }
-        
+
         // Execute seed data insertion
         if (seedData && seedData.trim()) {
           this.logger.log(`Executing seed data on container ${sessionId}`);
@@ -74,11 +80,13 @@ export class ContainerDatabaseClientService {
         await client.end();
       }
     } catch (error) {
-      this.logger.error(`Error initializing database on container: ${error.message}`);
+      this.logger.error(
+        `Error initializing database on container: ${error.message}`,
+      );
       throw error;
     }
   }
-  
+
   /**
    * Execute a batch of SQL statements on a container
    */
@@ -95,24 +103,25 @@ export class ContainerDatabaseClientService {
     const errors: string[] = [];
     const warnings: string[] = [];
     let successCount = 0;
-    
+
     try {
       // Get the container's connection string
-      const connectionString = this.dockerService.getConnectionString(sessionId);
-      
+      const connectionString =
+        this.dockerService.getConnectionString(sessionId);
+
       // Create a client to connect to the container
       const client = new Client({
         connectionString,
       });
-      
+
       // Connect to the database
       await client.connect();
-      
+
       try {
         // Execute each statement
         for (const statement of statements) {
           if (!statement.trim()) continue;
-          
+
           try {
             await client.query(statement);
             successCount++;
@@ -125,7 +134,7 @@ export class ContainerDatabaseClientService {
             }
           }
         }
-        
+
         // Build response message
         let message = `Executed ${successCount} statements successfully.`;
         if (warnings.length > 0) {
@@ -134,7 +143,7 @@ export class ContainerDatabaseClientService {
         if (errors.length > 0) {
           message += ` ${errors.length} errors occurred.`;
         }
-        
+
         return {
           success: errors.length === 0,
           successCount,
@@ -157,7 +166,7 @@ export class ContainerDatabaseClientService {
       };
     }
   }
-  
+
   /**
    * Check if an error is non-critical
    */
@@ -165,10 +174,10 @@ export class ContainerDatabaseClientService {
     // PostgreSQL error codes for non-critical errors
     const nonCriticalErrors = [
       '42P07', // duplicate_table
-      '23505',  // unique_violation
+      '23505', // unique_violation
       // Add more as needed
     ];
-    
+
     return nonCriticalErrors.includes(error.code);
   }
-} 
+}

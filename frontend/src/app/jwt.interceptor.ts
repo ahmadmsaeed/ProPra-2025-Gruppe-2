@@ -1,8 +1,8 @@
 import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpEvent, HttpErrorResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { AuthService } from './services/auth.service';
-import { Observable, throwError, of } from 'rxjs';
-import { catchError, retry, mergeMap } from 'rxjs/operators';
+import { Observable, throwError, of, fromEvent, timer, Subject } from 'rxjs';
+import { catchError, retry, mergeMap, finalize, shareReplay } from 'rxjs/operators';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { environment } from '../environments/environment';
@@ -134,7 +134,11 @@ function handleForbiddenError(
 
 /**
  * Try to refresh the token and retry the original request
+ * Uses a synchronized token refresh mechanism to prevent multiple refresh requests
  */
+// We use a static property to track ongoing refresh operations
+let refreshTokenPromise: Observable<any> | null = null;
+
 function refreshTokenAndRetry(
   request: HttpRequest<any>,
   next: HttpHandlerFn,
@@ -142,10 +146,38 @@ function refreshTokenAndRetry(
   router: Router,
   snackBar: MatSnackBar
 ): Observable<HttpEvent<any>> {
-  return authService.refreshToken().pipe(
+  // Check if token is present before trying to refresh
+  if (!authService.getToken()) {
+    console.warn('No token available, redirecting to login page');
+    authService.logout(true);
+    return throwError(() => new Error('No authentication token available'));
+  }
+
+  // If there's already a refresh in progress, use that one instead of starting another
+  if (!refreshTokenPromise) {
+    // Create a new refresh token promise
+    refreshTokenPromise = authService.refreshToken().pipe(
+      // After refresh completes (success or error), clear the promise
+      finalize(() => {
+        refreshTokenPromise = null;
+      }),
+      // Share the same refresh call with multiple requests
+      shareReplay(1)
+    );
+  }
+
+  // Use the existing or new refresh promise
+  return refreshTokenPromise.pipe(
     mergeMap(() => {
       // Retry the original request with the new token
       const token = authService.getToken();
+      
+      if (!token) {
+        console.error('Token refresh succeeded but no token returned');
+        authService.logout(true);
+        return throwError(() => new Error('Authentication failed'));
+      }
+      
       const updatedRequest = request.clone({
         setHeaders: {
           Authorization: `Bearer ${token}`,
@@ -154,11 +186,13 @@ function refreshTokenAndRetry(
       return next(updatedRequest);
     }),
     catchError((refreshError) => {
-      // If refresh fails, log the user out
-      snackBar.open('Your session has expired. Please log in again.', 'Close', {
-        duration: 5000
-      });
-      authService.logout(true);
+      // If refresh fails, log the user out only for authentication errors
+      if (refreshError.status === 401 || refreshError.status === 403) {
+        snackBar.open('Your session has expired. Please log in again.', 'Close', {
+          duration: 5000
+        });
+        authService.logout(true);
+      }
       return throwError(() => refreshError);
     })
   );

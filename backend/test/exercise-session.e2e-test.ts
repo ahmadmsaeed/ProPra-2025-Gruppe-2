@@ -25,4 +25,4 @@ describe('ExerciseSessionController (e2e)', () => {
       .send({ exerciseId: 1 })
       .expect(201); // Expected status is 201 Created for POST
   });
-}); 
+});

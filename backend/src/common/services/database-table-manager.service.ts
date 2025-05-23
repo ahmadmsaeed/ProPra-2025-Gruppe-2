@@ -54,7 +54,7 @@ export class DatabaseTableManagerService {
   async dropDatabaseTables(database: any): Promise<string[]> {
     try {
       console.log(
-        `Attempting to drop tables for database: ${database.name} (ID: ${database.id})`,
+        `Attempting to drop tables for database: ${String(database.name)} (ID: ${database.id})`,
       );
 
       // Extract table names only from this database's schema
@@ -63,7 +63,7 @@ export class DatabaseTableManagerService {
 
       // Add known tables based on the database name if not already detected
       if (
-        database.name.toLowerCase().includes('personen') &&
+        String(database.name).toLowerCase().includes('personen') &&
         !tableNames.includes('personen')
       ) {
         tableNames.push('personen');
@@ -108,7 +108,7 @@ export class DatabaseTableManagerService {
       // Try to drop any tables derived from database name
       try {
         console.log('Attempting name-based table cleanup');
-        const nameWords = database.name.split(/[_\s.]/);
+        const nameWords = String(database.name).split(/[_\s.]/);
         for (const word of nameWords) {
           if (
             word.length > 3 &&

@@ -4,7 +4,7 @@ import {
   Inject,
   forwardRef,
 } from '@nestjs/common';
-import { Database } from '@prisma/client';
+import { Database } from '../types/models';
 import { ErrorService } from '../common/services/error.service';
 import { SqlProcessorService } from '../common/services/sql-processor.service';
 import { MySqlConverterService } from '../common/services/mysql-converter.service';
@@ -13,78 +13,117 @@ import { DatabaseValidatorService } from '../common/services/database-validator.
 import { DatabaseExecutionService } from './database-execution.service';
 import { DatabaseManagementService } from './database-management.service';
 
-/**
- * Service for handling database import operations
- * Acts as a coordinator between specialized services
- */
 @Injectable()
 export class DatabaseImportService {
   constructor(
-    private errorService: ErrorService,
-    private sqlProcessor: SqlProcessorService,
-    private mysqlConverter: MySqlConverterService,
-    private fileService: FileService,
-    private databaseValidator: DatabaseValidatorService,
-    private databaseExecution: DatabaseExecutionService,
+    private readonly errorService: ErrorService,
+    private readonly sqlProcessor: SqlProcessorService,
+    private readonly mysqlConverter: MySqlConverterService,
+    private readonly fileService: FileService,
+    private readonly databaseValidator: DatabaseValidatorService,
+    private readonly databaseExecution: DatabaseExecutionService,
     @Inject(forwardRef(() => DatabaseManagementService))
-    private databaseManagement: DatabaseManagementService,
+    private readonly databaseManagement: DatabaseManagementService,
   ) {}
 
-  /**
-   * Import SQL from an uploaded file
-   */
   async importSqlFile(
     file: Express.Multer.File,
     name?: string,
     authorId?: number,
-  ): Promise<Database> {
+  ): Promise<Database & { warnings?: string[] }> {
     try {
-      // Get file content
       const fileContent = file.buffer.toString('utf-8');
 
-      // Validate the SQL content for security issues
-      const validationResult = this.databaseValidator.validateSqlFileContent(fileContent);
+      const validationResult =
+        await this.databaseValidator.validateSqlFileContent(fileContent);
       if (!validationResult.valid) {
-        throw new BadRequestException(validationResult.reason);
+        throw new BadRequestException({
+          message: validationResult.reason,
+          code: 'VALIDATION_ERROR',
+        });
       }
-      
-      // Process the SQL content through the processor service
-      const processedData = this.sqlProcessor.processSqlFileContent(
+
+      const processedData = await this.sqlProcessor.processSqlFileContent(
         fileContent,
         file.originalname,
-        this.mysqlConverter
+        this.mysqlConverter,
       );
-      
-      // Generate a unique name or use the provided one
-      const databaseName = name || this.sqlProcessor.generateUniqueDatabaseName(
-        file.originalname, 
-        processedData.fileType
-      );
-      
-      // Create the database entry
+
+      const databaseName =
+        name ||
+        this.sqlProcessor.generateUniqueDatabaseName(
+          file.originalname,
+          processedData.fileType,
+        );
+
+      const warnings: string[] = [];
+
       const database = await this.databaseManagement.createDatabaseEntry(
         databaseName,
         processedData.schema,
         processedData.seedData,
         processedData.fileType,
-        authorId
+        authorId,
       );
 
-      // Execute the SQL statements
       try {
-        await this.databaseExecution.executeSqlScript(processedData.processedSql);
-      } catch (error) {
-        // Log the execution error but don't fail the import
-        console.error(`SQL execution error during import: ${error.message}`);
-        
-        // If there's an error with the SQL, we should clean up the database entry
-        // that was just created to avoid orphaned database records
+        const executionResult = await this.databaseExecution.executeSqlScript(
+          processedData.processedSql,
+          { useTransaction: true },
+        );
+
+        if (executionResult.warnings?.length) {
+          warnings.push(...executionResult.warnings);
+        }
+
+        if (!executionResult.success) {
+          try {
+            await this.databaseManagement.deleteDatabase(
+              database.id,
+              authorId || 0,
+              'SYSTEM',
+            );
+          } catch (err) {
+            console.error('Failed to clean up database after error:', err);
+          }
+
+          throw new BadRequestException({
+            message:
+              executionResult.message || 'Failed to execute SQL statements',
+            code: 'EXECUTION_ERROR',
+          });
+        }
+      } catch (error: any) {
+        try {
+          await this.databaseManagement.deleteDatabase(
+            database.id,
+            authorId || 0,
+            'SYSTEM',
+          );
+        } catch (err) {
+          console.error('Failed to clean up database after error:', err);
+        }
+
+        if (error.code === '23505') {
+          throw new BadRequestException({
+            message:
+              'Die Datenbank enthält Daten, die bereits existieren und nicht überschrieben werden können.',
+            code: 'DUPLICATE_DATA',
+            detail: error.detail,
+          });
+        }
+
         throw error;
       }
 
-      return database;
-    } catch (error) {
+      return warnings.length > 0 ? { ...database, warnings } : database;
+    } catch (error: any) {
       console.error('Error in importSqlFile:', error);
+
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
       const errorMsg = this.errorService.handlePostgresError(error);
       throw this.errorService.createBadRequestException(
         `SQL-Datei konnte nicht importiert werden: ${errorMsg}`,
@@ -92,9 +131,6 @@ export class DatabaseImportService {
     }
   }
 
-  /**
-   * Creates a new database from SQL content (for use by ExerciseService)
-   */
   async createDatabaseFromSqlContent(
     sqlContent: string,
     baseName: string,
@@ -104,9 +140,9 @@ export class DatabaseImportService {
       return await this.databaseManagement.createDatabaseFromContent(
         sqlContent,
         baseName,
-        authorId
+        authorId,
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in createDatabaseFromSqlContent:', error);
       throw new BadRequestException(
         `Failed to process SQL content: ${error.message}`,

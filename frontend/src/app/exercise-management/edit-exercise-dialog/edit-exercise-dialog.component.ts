@@ -6,10 +6,10 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSelectModule } from '@angular/material/select';
-import { ExerciseService } from '../services/exercise.service';
-import { DatabaseService } from '../services/database.service';
-import { Database } from '../models/database.model';
-import { Exercise } from '../models/exercise.model';
+import { ExerciseService } from '../../services/exercise.service';
+import { DatabaseService } from '../../services/database.service';
+import { Database } from '../../models/database.model';
+import { Exercise } from '../../models/exercise.model';
 import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({  selector: 'app-edit-exercise-dialog',

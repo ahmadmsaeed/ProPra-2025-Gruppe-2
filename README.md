@@ -68,8 +68,7 @@ docker-compose up -d
 ```bash
 cd backend
 npm install
-npx prisma generate
-npx prisma migrate deploy
+npx prisma migrate dev --name init
 npx prisma db seed
 npm run start:dev
 ```

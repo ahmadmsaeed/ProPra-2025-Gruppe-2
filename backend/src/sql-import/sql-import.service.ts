@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Database } from '@prisma/client';
+import { Database } from '../types/models';
 import { DatabaseImportService } from './database-import.service';
 import { DatabaseExecutionService } from './database-execution.service';
 import { DatabaseManagementService } from './database-management.service';
@@ -86,22 +86,31 @@ export class SqlImportService {
         const processedDb = await this.databaseImport.importSqlFile(
           sqlFile,
           tempName,
-          userId
+          userId,
         );
-        
+
         // Update the database with the new SQL content
         updateData.schema = processedDb.schema;
         updateData.seedData = processedDb.seedData || '';
-        
+
         // Delete the temporary database since we only needed its processed schema
-        await this.databaseManagement.deleteDatabase(processedDb.id, userId, userRole);
+        await this.databaseManagement.deleteDatabase(
+          processedDb.id,
+          userId,
+          userRole,
+        );
       } catch (error) {
         console.error('Error processing SQL file:', error);
         // Continue with the update even if SQL processing failed
       }
     }
 
-    return this.databaseManagement.updateDatabase(id, updateData, userId, userRole);
+    return this.databaseManagement.updateDatabase(
+      id,
+      updateData,
+      userId,
+      userRole,
+    );
   }
 
   /**
@@ -113,17 +122,18 @@ export class SqlImportService {
     userId: number,
     userRole: string,
   ) {
-    return this.databaseManagement.updateDatabase(id, updateData, userId, userRole);
+    return this.databaseManagement.updateDatabase(
+      id,
+      updateData,
+      userId,
+      userRole,
+    );
   }
 
   /**
    * Delete a database
    */
-  async deleteDatabase(
-    id: number,
-    userId: number,
-    userRole: string,
-  ) {
+  async deleteDatabase(id: number, userId: number, userRole: string) {
     return this.databaseManagement.deleteDatabase(id, userId, userRole);
   }
 
@@ -171,11 +181,7 @@ export class SqlImportService {
   /**
    * Delete a database
    */
-  async delete(
-    id: number,
-    userId: number,
-    userRole: string,
-  ) {
+  async delete(id: number, userId: number, userRole: string) {
     return this.databaseManagement.deleteDatabase(id, userId, userRole);
   }
 

@@ -1,7 +1,7 @@
 import { Injectable, inject, OnDestroy } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, throwError, of, fromEvent, timer, Subject } from 'rxjs';
-import { tap, catchError, takeUntil, finalize, shareReplay, map } from 'rxjs/operators';
+import { tap, catchError, takeUntil, finalize, shareReplay, map, mergeMap, timeout } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { Router } from '@angular/router';
 import { jwtDecode } from 'jwt-decode';
@@ -53,29 +53,73 @@ export class AuthService implements OnDestroy {
   
   /**
    * Initialize user data from local storage on service creation
+   * Uses a more robust initialization flow with retries and better error handling
    */
   private initializeFromStorage(): void {
     try {
       const token = this.getStoredToken();
-      if (token) {
-        const isTokenValid = this.validateToken(token);
-        if (isTokenValid) {
-          const userData = this.getStoredUser();
-          if (userData) {
-            this.currentUserSubject.next(userData);
-            this.setupTokenExpirationTimer(token);
-          } else {
-            // Token valid but no user data, fetch from API
-            this.refreshUserData().subscribe();
-          }
-        } else {
-          // Token invalid, clear storage
-          this.logout(false);
-        }
+      const userData = this.getStoredUser();
+
+      // No stored data, clean initialization
+      if (!token && !userData) {
+        console.log('No stored auth data found');
+        return;
+      }
+
+      // Handle case where we have user data but no token
+      if (!token && userData) {
+        console.log('Found user data but no token, clearing stored data');
+        this.clearStoredAuthData();
+        return;
+      }
+
+      // Validate token
+      const isTokenValid = this.validateToken(token!);
+      console.log('Token validation result:', isTokenValid);
+
+      // If token is valid and we have user data, initialize session
+      if (isTokenValid && userData) {
+        console.log('Valid token and user data found, initializing session');
+        this.currentUserSubject.next(userData);
+        this.setupTokenExpirationTimer(token!);
+        
+        // Refresh user data in background for latest state
+        this.refreshUserData().pipe(
+          catchError(error => {
+            console.warn('Background user refresh failed:', error);
+            return of(null);
+          })
+        ).subscribe();
+        
+        return;
+      }
+
+      // Token is invalid or missing user data, try to recover
+      console.log('Attempting to recover invalid/incomplete session state');
+      
+      // Only attempt recovery if we have enough data
+      if (userData && token) {
+        console.log('Attempting token refresh for recovery');
+        this.refreshToken().pipe(
+          mergeMap(() => this.refreshUserData()),
+          timeout(5000), // Don't hang for too long
+          catchError(error => {
+            console.error('Session recovery failed:', error);
+            this.logout(false);
+            return throwError(() => error);
+          })
+        ).subscribe({
+          next: () => console.log('Session recovered successfully'),
+          error: () => {} // Error already handled in catchError
+        });
+      } else {
+        // Not enough data to attempt recovery
+        console.log('Insufficient data for session recovery, clearing auth state');
+        this.clearStoredAuthData();
       }
     } catch (error) {
-      console.error('Error initializing auth service:', error);
-      this.logout(false);
+      console.error('Critical error during auth initialization:', error);
+      this.clearStoredAuthData();
     }
   }
   
@@ -137,18 +181,30 @@ export class AuthService implements OnDestroy {
    * Refreshes the access token
    */
   refreshToken(): Observable<{ access_token: string }> {
+    const token = this.getStoredToken();
+    
+    // Don't attempt refresh if there's no token
+    if (!token) {
+      return throwError(() => new Error('No token available for refresh'));
+    }
+    
     return this.http.post<{ access_token: string }>(`${this.apiUrl}/refresh-token`, {}).pipe(
       tap(res => {
+        if (!res.access_token) {
+          throw new Error('Refresh response missing access token');
+        }
         this.storeToken(res.access_token);
         this.setupTokenExpirationTimer(res.access_token);
       }),
       catchError(error => {
         console.error('Token refresh failed:', error);
-        if (error.status === 401) {
+        // Only logout on specific errors (401, 403)
+        if (error.status === 401 || error.status === 403) {
           this.logout(true);
         }
         return throwError(() => new Error('Failed to refresh token'));
-      })
+      }),
+      shareReplay(1) // Cache the response to prevent multiple parallel refreshes
     );
   }
 
@@ -244,9 +300,33 @@ export class AuthService implements OnDestroy {
 
   /**
    * Gibt zurück, ob ein User eingeloggt ist.
+   * Also checks if the token is valid
    */
   isLoggedIn(): boolean {
-    return !!this.getCurrentUser() && !!this.getStoredToken();
+    const token = this.getStoredToken();
+    const user = this.getCurrentUser();
+    
+    if (!token || !user) {
+      return false;
+    }
+    
+    // Check if token is valid
+    try {
+      const decoded = jwtDecode<JwtPayload>(token);
+      const tokenIsValid = Date.now() < decoded.exp * 1000;
+      
+      if (!tokenIsValid) {
+        console.warn('Token expired, logging out');
+        this.logout(true);
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Invalid token format, logging out:', error);
+      this.logout(true);
+      return false;
+    }
   }
   
   /**
@@ -338,13 +418,41 @@ export class AuthService implements OnDestroy {
   }
   
   /**
-   * Validate token by checking expiration
+   * Validate token by checking expiration and structure
    */
   private validateToken(token: string): boolean {
     try {
       const decoded = jwtDecode<JwtPayload>(token);
       const expirationTime = decoded.exp * 1000; // Convert to milliseconds
-      return Date.now() < expirationTime;
+      const currentTime = Date.now();
+      
+      // Check required token fields
+      if (!decoded.sub || !decoded.email || !decoded.role) {
+        console.error('Token missing required fields');
+        return false;
+      }
+      
+      // Check if token is expired
+      if (currentTime >= expirationTime) {
+        console.log('Token is expired');
+        return false;
+      }
+      
+      // Check if token was issued in the future (clock skew)
+      const issuedAt = decoded.iat * 1000;
+      if (issuedAt > currentTime + 60000) { // Allow 1 minute clock skew
+        console.error('Token issued in future - possible clock skew');
+        return false;
+      }
+      
+      // Check if token is too old (max 24 hours)
+      const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+      if (currentTime - issuedAt > maxAge) {
+        console.log('Token exceeds maximum age');
+        return false;
+      }
+      
+      return true;
     } catch (error) {
       console.error('Invalid token format:', error);
       return false;
@@ -352,7 +460,7 @@ export class AuthService implements OnDestroy {
   }
   
   /**
-   * Set up timer to handle token expiration
+   * Set up timer to handle token expiration with smart refresh windows
    */
   private setupTokenExpirationTimer(token: string): void {
     try {
@@ -363,28 +471,53 @@ export class AuthService implements OnDestroy {
       const currentTime = Date.now();
       
       if (expirationTime <= currentTime) {
-        // Token already expired
+        console.log('Token already expired, logging out');
         this.logout(true);
         return;
       }
       
       const timeToExpiration = expirationTime - currentTime;
-      const warningThreshold = environment.authConfig.tokenExpirationWarningThreshold || 5 * 60 * 1000; // Default 5 min
+      const refreshWindow = this.calculateRefreshWindow(timeToExpiration);
       
-      if (timeToExpiration > warningThreshold) {
-        // Set timer to warn before expiration
-        const warningTime = timeToExpiration - warningThreshold;
-        this.tokenExpirationTimer = setTimeout(() => {
-          // Refresh token or notify user
-          this.refreshToken().subscribe();
-        }, warningTime);
-      } else {
-        // Less than warning threshold left, refresh now
-        this.refreshToken().subscribe();
-      }
+      console.log(`Token expires in ${Math.round(timeToExpiration / 1000)}s, will refresh in ${Math.round(refreshWindow / 1000)}s`);
+      
+      this.tokenExpirationTimer = setTimeout(() => {
+        console.log('Token refresh window reached, attempting refresh');
+        this.refreshToken().subscribe({
+          next: () => console.log('Token refreshed successfully'),
+          error: (error) => {
+            console.error('Failed to refresh token:', error);
+            if (error.status === 401 || error.status === 403) {
+              this.logout(true);
+            }
+          }
+        });
+      }, refreshWindow);
     } catch (error) {
       console.error('Error setting up token expiration timer:', error);
     }
+  }
+
+  /**
+   * Calculate when to refresh the token based on its expiration time
+   * Uses a sliding window approach to prevent token expiration
+   */
+  private calculateRefreshWindow(timeToExpiration: number): number {
+    const minRefreshInterval = 5 * 60 * 1000; // 5 minutes
+    const maxRefreshInterval = 60 * 60 * 1000; // 1 hour
+    
+    // If token expires in less than minRefreshInterval, refresh at halfway point
+    if (timeToExpiration < minRefreshInterval) {
+      return timeToExpiration / 2;
+    }
+    
+    // If token expires in less than maxRefreshInterval, refresh when 75% of time has passed
+    if (timeToExpiration < maxRefreshInterval) {
+      return timeToExpiration * 0.75;
+    }
+    
+    // For long-lived tokens, refresh hourly
+    return maxRefreshInterval;
   }
   
   /**

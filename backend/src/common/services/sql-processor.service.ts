@@ -362,4 +362,14 @@ export class SqlProcessorService {
     const timestamp = new Date().getTime();
     return `${baseName}_${fileType}_${timestamp}`;
   }
+
+  /**
+   * Extract SQL statements from content
+   */
+  public extractStatements(sqlContent: string): string[] {
+    // First clean the SQL by removing comments
+    const cleanSql = this.removeComments(sqlContent);
+    // Then split into individual statements
+    return this.splitIntoStatements(cleanSql);
+  }
 }

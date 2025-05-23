@@ -66,13 +66,95 @@ export class DatabaseExecutionService {
   }
 
   /**
-   * Execute a batch of SQL statements
-   * Returns information about execution success, warnings, and errors
-   * @param statements Array of SQL statements to execute
-   * @param options.batchSize Number of statements to execute in each batch (default: 10)
-   * @param options.useTransaction Whether to use a transaction (default: true)
+   * Executes SQL statements with error handling
    */
-  async executeStatements(
+  private async executeStatements(
+    statements: string[],
+    options: {
+      useTransaction: boolean;
+      onError?: (error: any) => 'CONTINUE' | 'THROW';
+    },
+  ): Promise<{
+    success: boolean;
+    successCount: number;
+    errors: string[];
+    warnings: string[];
+    message: string;
+  }> {
+    const result = {
+      success: true,
+      successCount: 0,
+      errors: [] as string[],
+      warnings: [] as string[],
+      message: '',
+    };
+
+    if (options.useTransaction) {
+      try {
+        await this.prisma.$transaction(async (prisma) => {
+          for (const statement of statements) {
+            try {
+              await prisma.$executeRawUnsafe(statement);
+              result.successCount++;
+            } catch (error) {
+              if (options.onError) {
+                const action = options.onError(error);
+                if (action === 'CONTINUE') {
+                  result.warnings.push(error.message);
+                  continue;
+                }
+              }
+              throw error;
+            }
+          }
+        });
+
+        result.message =
+          result.warnings.length > 0
+            ? 'SQL statements executed with warnings'
+            : 'All SQL statements executed successfully';
+      } catch (error) {
+        result.success = false;
+        result.errors.push(error.message);
+        result.message = `Failed to execute SQL statements: ${error.message}`;
+        throw error;
+      }
+    } else {
+      // Non-transactional execution
+      for (const statement of statements) {
+        try {
+          await this.prisma.$executeRawUnsafe(statement);
+          result.successCount++;
+        } catch (error) {
+          if (options.onError) {
+            const action = options.onError(error);
+            if (action === 'CONTINUE') {
+              result.warnings.push(error.message);
+              continue;
+            }
+          }
+          result.success = false;
+          result.errors.push(error.message);
+          result.message = `Failed to execute SQL statement: ${error.message}`;
+          throw error;
+        }
+      }
+
+      if (result.success) {
+        result.message =
+          result.warnings.length > 0
+            ? 'SQL statements executed with warnings'
+            : 'All SQL statements executed successfully';
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Execute SQL statements in batches, with each type of statement in its own transaction
+   */
+  async executeStatementsOld(
     statements: string[],
     options: { batchSize?: number; useTransaction?: boolean } = {},
   ): Promise<{
@@ -82,38 +164,32 @@ export class DatabaseExecutionService {
     warnings: string[];
     message: string;
   }> {
-    // Track errors to provide comprehensive feedback
-    const errors: string[] = [];
-    // Track warnings for non-critical errors
-    const warnings: string[] = [];
-    // Track successful statements
     let successCount = 0;
+    const errors: string[] = [];
+    const warnings: string[] = [];
+    const validStatements = statements.filter((stmt) => stmt.trim().length > 0);
 
-    // Default batch size to 10 if not specified
-    const batchSize = options.batchSize || 10;
-    // Default to using transactions
-    const useTransaction = options.useTransaction !== false;
-
-    // Filter out empty statements
-    const validStatements = statements.filter(stmt => stmt.trim().length > 0);
-    
-    console.log(`Executing ${validStatements.length} SQL statements ${useTransaction ? 'in transaction' : 'without transaction'}`);
-    
     // First, categorize statements
-    const createTableStatements = validStatements.filter(stmt => 
-      stmt.trim().toUpperCase().startsWith('CREATE TABLE'));
-    
-    const insertStatements = validStatements.filter(stmt => 
-      stmt.trim().toUpperCase().startsWith('INSERT INTO'));
-    
-    const otherStatements = validStatements.filter(stmt => 
-      !stmt.trim().toUpperCase().startsWith('CREATE TABLE') && 
-      !stmt.trim().toUpperCase().startsWith('INSERT INTO'));
-    
-    console.log(`Statement breakdown: ${createTableStatements.length} CREATE TABLE, ` +
-                `${otherStatements.length} other DDL, ${insertStatements.length} INSERT INTO`);
-    
-    // First execute all CREATE TABLE statements
+    const createTableStatements = validStatements.filter((stmt) =>
+      stmt.trim().toUpperCase().startsWith('CREATE TABLE'),
+    );
+
+    const insertStatements = validStatements.filter((stmt) =>
+      stmt.trim().toUpperCase().startsWith('INSERT INTO'),
+    );
+
+    const otherStatements = validStatements.filter(
+      (stmt) =>
+        !stmt.trim().toUpperCase().startsWith('CREATE TABLE') &&
+        !stmt.trim().toUpperCase().startsWith('INSERT INTO'),
+    );
+
+    console.log(
+      `Statement breakdown: ${createTableStatements.length} CREATE TABLE, ` +
+        `${otherStatements.length} other DDL, ${insertStatements.length} INSERT INTO`,
+    );
+
+    // Execute CREATE TABLE statements first (no transaction needed)
     for (const statement of createTableStatements) {
       try {
         await this.prisma.$executeRawUnsafe(statement);
@@ -121,38 +197,61 @@ export class DatabaseExecutionService {
         console.log(`Successfully executed: ${statement.substring(0, 50)}...`);
       } catch (err) {
         this.handleStatementError(statement, err, errors, warnings);
-        console.log(`Handling CREATE TABLE error: ${err.code || 'unknown'}`);
-        // Non-critical errors like table already exists should not prevent further execution
-      }
-    }
-    
-    // Then execute all other DDL statements
-    for (const statement of otherStatements) {
-      try {
-        await this.prisma.$executeRawUnsafe(statement);
-        successCount++;
-        console.log(`Successfully executed: ${statement.substring(0, 50)}...`);
-      } catch (err) {
-        this.handleStatementError(statement, err, errors, warnings);
-        console.log(`Handling DDL error: ${err.code || 'unknown'}`);
-      }
-    }
-    
-    // Finally execute all INSERT statements
-    for (const statement of insertStatements) {
-      try {
-        await this.prisma.$executeRawUnsafe(statement);
-        successCount++;
-      } catch (err) {
-        this.handleStatementError(statement, err, errors, warnings);
-        console.log(`Handling INSERT error: ${err.code || 'unknown'}`);
       }
     }
 
-    // Build the appropriate response
+    // Execute other DDL statements in a transaction
+    if (otherStatements.length > 0) {
+      try {
+        await this.prisma.$transaction(async (prisma) => {
+          for (const statement of otherStatements) {
+            try {
+              await prisma.$executeRawUnsafe(statement);
+              successCount++;
+              console.log(
+                `Successfully executed: ${statement.substring(0, 50)}...`,
+              );
+            } catch (err) {
+              this.handleStatementError(statement, err, errors, warnings);
+              if (options.useTransaction) {
+                throw err; // Rollback the transaction if useTransaction is true
+              }
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Error in DDL transaction:', err);
+        if (!errors.includes(err.message)) {
+          errors.push(`DDL transaction failed: ${err.message}`);
+        }
+      }
+    }
+
+    // Execute INSERT statements in a transaction with continue-on-error behavior
+    if (insertStatements.length > 0) {
+      try {
+        await this.prisma.$transaction(async (prisma) => {
+          for (const statement of insertStatements) {
+            try {
+              await prisma.$executeRawUnsafe(statement);
+              successCount++;
+            } catch (err) {
+              this.handleStatementError(statement, err, errors, warnings);
+              // Don't throw error for INSERT statements to allow continuing with other inserts
+            }
+          }
+        });
+      } catch (err) {
+        console.error('Error in INSERT transaction:', err);
+        if (!errors.includes(err.message)) {
+          errors.push(`INSERT transaction failed: ${err.message}`);
+        }
+      }
+    }
+
     return this.buildExecutionResponse(successCount, errors, warnings);
   }
-  
+
   /**
    * Handle errors from statement execution
    */
@@ -162,23 +261,40 @@ export class DatabaseExecutionService {
     errors: string[],
     warnings: string[],
   ): void {
-    // Use the error service to generate a user-friendly error message
-    const errorMsg = this.errorService.handlePostgresError(err);
+    let enhancedMessage = err.message || 'Unknown error';
 
-    // Add statement info to error message for better debugging
-    const statementInfo = statement.substring(0, 50) + (statement.length > 50 ? '...' : '');
-    const enhancedMessage = `[${statementInfo}] ${errorMsg}`;
-
-    // Determine if this is a critical error or just a warning
-    if (this.errorService.isNonCriticalError(err)) {
-      console.warn(`Non-critical error in statement: ${enhancedMessage}`, err.code);
-      warnings.push(enhancedMessage);
-    } else {
-      console.error(`Critical error in statement: ${enhancedMessage}`, err.code);
+    // Handle specific PostgreSQL error codes
+    if (err.code) {
+      switch (err.code) {
+        case '23505': // unique_violation
+          // If this is an INSERT statement, treat as a warning
+          if (statement.trim().toUpperCase().startsWith('INSERT')) {
+            const detail = err.detail || 'Duplicate key value';
+            warnings.push(`Skipped duplicate data: ${detail}`);
+            return; // Don't add to errors array
+          }
+          enhancedMessage = `Duplicate key violation: ${err.detail || 'Key already exists'}`;
+          break;
+        case '42P07': // relation_already_exists
+          if (statement.trim().toUpperCase().startsWith('CREATE')) {
+            warnings.push(`Table already exists, skipping creation`);
+            return; // Don't add to errors array
+          }
+          enhancedMessage = 'Table or relation already exists';
+          break;
+        case '42P01': // undefined_table
+          enhancedMessage = 'Table or relation does not exist';
+          break;
+        case '42703': // undefined_column
+          enhancedMessage = 'Column does not exist';
+          break;
+        default:
+          enhancedMessage = `${err.message} (Code: ${err.code})`;
+      }
       errors.push(enhancedMessage);
     }
   }
-  
+
   /**
    * Build the execution response object
    */
@@ -235,10 +351,11 @@ export class DatabaseExecutionService {
    */
   async executeSqlScript(
     sqlContent: string,
-    options: { 
-      validateOnly?: boolean; 
+    options: {
+      validateOnly?: boolean;
       useTransaction?: boolean;
       executionId?: string;
+      onError?: (error: any) => 'CONTINUE' | 'THROW';
     } = {},
   ): Promise<{
     success: boolean;
@@ -247,26 +364,12 @@ export class DatabaseExecutionService {
     warnings: string[];
     message: string;
   }> {
-    // Split the SQL into individual statements first
-    const statements = this.sqlProcessor.splitIntoStatements(sqlContent);
-    console.log(`SQL split into ${statements.length} statements`);
-    
-    // Log a sample of statements for debugging
-    if (statements.length > 0) {
-      console.log('First statement preview:', 
-                  statements[0].substring(0, 100));
-      if (statements.length > 1) {
-        console.log('Second statement preview:', 
-                   statements[1].substring(0, 100));
-      }
-    }
-
-    // Validate SQL statements for safety
-    const validationResults = this.sqlValidator.validateSqlStatements(
+    // Extract and validate statements
+    const statements = this.sqlProcessor.extractStatements(sqlContent);
+    const invalidStatements = this.sqlValidator.validateSqlStatements(
       sqlContent,
       statements,
     );
-    const invalidStatements = validationResults.filter((r) => !r.valid);
 
     if (invalidStatements.length > 0) {
       const errorMessage = `SQL contains potentially harmful statements: ${invalidStatements.map((s) => s.reason).join(' | ')}`;
@@ -284,9 +387,10 @@ export class DatabaseExecutionService {
       };
     }
 
-    // Execute statements in optimized order
+    // Execute statements with provided error handler
     return this.executeStatements(statements, {
-      useTransaction: options.useTransaction ?? false
+      useTransaction: options.useTransaction ?? false,
+      onError: options.onError,
     });
   }
 
@@ -304,21 +408,24 @@ export class DatabaseExecutionService {
     const dbEntry = await this.prisma.database.findUnique({
       where: { id: databaseId },
     });
-    
+
     if (!dbEntry) {
       throw new NotFoundException(`Database with ID ${databaseId} not found.`);
     }
 
     try {
       const result = await this.executeSqlScript(sqlContent);
-      
+
       return {
         success: result.success,
         message: result.message,
         warnings: result.warnings,
       };
     } catch (error) {
-      console.error(`Error in validateAndExecuteSql for database ${databaseId}:`, error);
+      console.error(
+        `Error in validateAndExecuteSql for database ${databaseId}:`,
+        error,
+      );
       const errorMsg = this.errorService.handlePostgresError(error);
       throw new BadRequestException(`Failed to execute SQL: ${errorMsg}`);
     }

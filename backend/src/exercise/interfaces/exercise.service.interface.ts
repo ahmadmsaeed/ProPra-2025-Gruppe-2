@@ -1,7 +1,7 @@
 /**
  * Interface for the ExerciseService, defining CRUD operations for exercises.
  */
-import { User } from '@prisma/client';
+import { User } from '../../types/models';
 
 /**
  * Contract for exercise service implementations.

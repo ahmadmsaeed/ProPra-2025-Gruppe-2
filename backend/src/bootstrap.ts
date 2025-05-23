@@ -29,7 +29,7 @@ export async function bootstrap() {
 
     // Security enhancements
     app.use(helmet());
-    
+
     // Performance optimizations
     app.use(compression());
 
@@ -37,7 +37,7 @@ export async function bootstrap() {
     app.use(bodyParser.json({ limit: '50mb' }));
     app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
     app.use(express.json({ limit: '50mb' }));
-    
+
     // Configure static assets
     app.use('/public', express.static('public'));
     app.useStaticAssets(join(__dirname, '..', 'uploads'), {
@@ -71,4 +71,4 @@ export async function bootstrap() {
     console.error('Error starting server:', error);
     process.exit(1);
   }
-} 
+}

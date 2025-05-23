@@ -15,8 +15,8 @@ export class DatabaseExportService {
   /**
    * Exports a database schema as SQL file content
    */
-  async exportDatabaseSql(databaseId: number): Promise<{ 
-    sql: string; 
+  async exportDatabaseSql(databaseId: number): Promise<{
+    sql: string;
     filename: string;
   }> {
     // Get the database
@@ -33,7 +33,7 @@ export class DatabaseExportService {
 
     // Add schema first
     if (database.schema) {
-      sqlContent += `-- Schema for database "${database.name}"\n`;
+      sqlContent += `-- Schema for database "${String(database.name)}"\n`;
       sqlContent += `-- Created: ${new Date().toISOString()}\n\n`;
       sqlContent += database.schema;
       sqlContent += '\n\n';
@@ -41,18 +41,18 @@ export class DatabaseExportService {
 
     // Add seed data with a separator
     if (database.seedData) {
-      sqlContent += `-- Seed data for database "${database.name}"\n\n`;
+      sqlContent += `-- Seed data for database "${String(database.name)}"\n\n`;
       sqlContent += database.seedData;
       sqlContent += '\n';
     }
 
     // Generate a filename
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `${database.name}_${timestamp}.sql`;
+    const filename = `${String(database.name)}_${timestamp}.sql`;
 
     return {
       sql: sqlContent,
       filename,
     };
   }
-} 
+}

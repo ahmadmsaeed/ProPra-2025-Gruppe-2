@@ -9,7 +9,8 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
-import { User } from '@prisma/client';
+// Import types from our models file
+import { User, Role } from '../types/models';
 
 /**
  * Service für Authentifizierung und User-Management.
@@ -75,6 +76,30 @@ export class AuthService {
       }, // Return basic user info
     };
   }
+
+  /**
+   * Refreshes the JWT token for an authenticated user
+   */
+  async refreshToken(userId: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true, isBlocked: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid token');
+    }
+
+    if (user.isBlocked) {
+      throw new ForbiddenException('Your account has been blocked');
+    }
+
+    const payload = { email: user.email, sub: user.id, role: user.role };
+    return {
+      access_token: this.jwt.sign(payload),
+    };
+  }
+
   /**
    * Gibt die Userdaten für den eingeloggten User zurück.
    */

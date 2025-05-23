@@ -1,10 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
-/**
- * Service for validating SQL statements before execution
- */
+interface PgColumn {
+  column_name: string;
+}
+
+interface ExistsResult {
+  exists: boolean;
+}
+
 @Injectable()
 export class SqlValidatorService {
+  constructor(private prisma: PrismaService) {}
+
   // List of potentially harmful SQL patterns
   private readonly BLOCKED_PATTERNS: RegExp[] = [
     /DROP\s+DATABASE/i, // Prevent dropping databases
@@ -46,27 +55,26 @@ export class SqlValidatorService {
   }
 
   /**
-   * Check if SQL is generally safe for execution
-   * Returns { valid: true } if valid, { valid: false, reason: string } if invalid
+   * Validates SQL safety and data integrity
    */
-  public validateSqlSafety(sql: string): { valid: boolean; reason?: string } {
-    // Clean up SQL - remove comments and normalize whitespace
-    const cleanedSql = sql
-      .replace(/--.*$/gm, '') // Remove single-line comments
-      .replace(/\/\*[\s\S]*?\*\//g, '') // Remove multi-line comments
-      .trim();
+  validateSqlSafety(query: string): { valid: boolean; reason?: string } {
+    // Check for dangerous operations
+    const dangerousOperations = [
+      'DROP DATABASE',
+      'DROP SCHEMA',
+      'TRUNCATE DATABASE',
+      'CREATE DATABASE',
+      'ALTER DATABASE',
+      'DELETE FROM',
+      'UPDATE ',
+    ];
 
-    // Check for empty statements
-    if (!cleanedSql) {
-      return { valid: true };
-    }
-
-    // Check against blocked patterns
-    for (const pattern of this.BLOCKED_PATTERNS) {
-      if (pattern.test(cleanedSql)) {
+    const upperQuery = query.toUpperCase();
+    for (const op of dangerousOperations) {
+      if (upperQuery.includes(op)) {
         return {
           valid: false,
-          reason: `SQL contains potentially harmful operations: ${pattern.toString()}`,
+          reason: `Nicht erlaubte Operation: ${op}`,
         };
       }
     }
@@ -75,27 +83,108 @@ export class SqlValidatorService {
   }
 
   /**
-   * Validates that all statements in a SQL string are safe to execute
-   * Returns an array of validation results for each statement
+   * Validates SQL statements before execution
    */
-  public validateSqlStatements(
-    sql: string,
+  validateSqlStatements(
+    sqlContent: string,
     statements: string[],
-  ): Array<{
-    statement: string;
-    valid: boolean;
-    reason?: string;
-  }> {
-    return statements.map((statement) => {
-      const result = this.validateSqlSafety(statement);
+  ): Array<{ valid: boolean; reason?: string }> {
+    return statements.map((stmt) => this.validateSqlSafety(stmt));
+  }
+
+  /**
+   * Validates SQL file content for safety and data integrity
+   */
+  async validateSqlFileContent(
+    sqlContent: string,
+  ): Promise<{ valid: boolean; reason?: string }> {
+    // First check basic SQL safety
+    const safetyCheck = this.validateSqlSafety(sqlContent);
+    if (!safetyCheck.valid) {
+      return safetyCheck;
+    }
+
+    try {
+      // Extract INSERT statements and their target tables
+      const insertMatches = sqlContent.matchAll(
+        /INSERT\s+INTO\s+(\w+)\s*\(([\s\S]*?)\)\s*VALUES\s*\(([\s\S]*?)\)/gi,
+      );
+      const inserts = Array.from(insertMatches);
+
+      // Track tables and their primary keys to check
+      const tablePrimaryKeys = new Map<string, Set<string>>();
+
+      for (const insert of inserts) {
+        const tableName = insert[1];
+        const columns = insert[2].split(',').map((col) => col.trim());
+        const values = insert[3].split(',').map((val) => val.trim());
+
+        // Check if this table already exists
+        const tableExistsQuery = Prisma.sql`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables 
+            WHERE table_name = ${tableName}
+          );
+        `;
+        const tableCheck =
+          await this.prisma.$queryRaw<ExistsResult[]>(tableExistsQuery);
+
+        if (tableCheck[0]?.exists) {
+          // Get primary key columns for the table
+          const pkQuery = Prisma.sql`
+            SELECT a.attname as column_name
+            FROM pg_index i
+            JOIN pg_attribute a ON a.attrelid = i.indrelid
+              AND a.attnum = ANY(i.indkey)
+            WHERE i.indrelid = ${tableName}::regclass
+              AND i.indisprimary;
+          `;
+          const pkColumns = await this.prisma.$queryRaw<PgColumn[]>(pkQuery);
+
+          // If table exists and has primary keys, check for conflicts
+          if (pkColumns && pkColumns.length > 0) {
+            const pkColumnNames = pkColumns.map((pk) => pk.column_name);
+            const pkIndexes = pkColumnNames.map((pkCol) =>
+              columns.indexOf(pkCol),
+            );
+
+            // Extract primary key values from the INSERT
+            const pkValues = pkIndexes.map((idx) => values[idx]);
+
+            // Check if these values already exist
+            const placeHolders = pkValues.map((_, i) => `$${i + 1}`).join(', ');
+            const existingQuery = Prisma.sql`
+              SELECT EXISTS (
+                SELECT 1 FROM "${tableName}"
+                WHERE (${Prisma.join(pkColumnNames)}) IN ((${Prisma.raw(placeHolders)}))
+              );
+            `;
+            const existingCheck =
+              await this.prisma.$queryRaw<ExistsResult[]>(existingQuery);
+
+            if (existingCheck[0]?.exists) {
+              return {
+                valid: false,
+                reason: `Cannot upload SQL file: Would overwrite existing data in table '${tableName}' (Primary key values: ${pkValues.join(', ')})`,
+              };
+            }
+
+            // Track this combination for future checks
+            if (!tablePrimaryKeys.has(tableName)) {
+              tablePrimaryKeys.set(tableName, new Set());
+            }
+            tablePrimaryKeys.get(tableName)!.add(pkValues.join('|'));
+          }
+        }
+      }
+
+      return { valid: true };
+    } catch (error: any) {
+      console.error('Error validating SQL file content:', error);
       return {
-        statement:
-          statement.length > 100
-            ? statement.substring(0, 97) + '...'
-            : statement,
-        valid: result.valid,
-        reason: result.reason,
+        valid: false,
+        reason: `SQL file validation failed: ${error.message}`,
       };
-    });
+    }
   }
 }

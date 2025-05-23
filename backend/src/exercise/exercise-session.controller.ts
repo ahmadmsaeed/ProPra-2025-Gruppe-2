@@ -23,18 +23,15 @@ export class ExerciseSessionController {
    * Start a new exercise session for the current student
    */
   @Post('start')
-  async startSession(
-    @Body() body: { exerciseId: number },
-    @Request() req,
-  ) {
+  async startSession(@Body() body: { exerciseId: number }, @Request() req) {
     // For demo purposes, using a fixed studentId
     // In production, this would come from req.user.id after authentication
     const studentId = 1; // req.user.id;
-    
+
     if (!body.exerciseId) {
       throw new BadRequestException('exerciseId is required');
     }
-    
+
     return this.exerciseSessionService.startExerciseSession(
       studentId,
       body.exerciseId,
@@ -52,40 +49,36 @@ export class ExerciseSessionController {
   ) {
     // For demo purposes, using a fixed studentId
     const studentId = 1; // req.user.id;
-    const container = this.exerciseSessionService['dockerService'].getContainer(sessionId);
-    
+    const container =
+      this.exerciseSessionService['dockerService'].getContainer(sessionId);
+
     // Verify this session belongs to the current student
     if (!container || container.studentId !== studentId) {
       throw new UnauthorizedException('You do not have access to this session');
     }
-    
+
     if (!body.query) {
       throw new BadRequestException('query is required');
     }
-    
-    return this.exerciseSessionService.executeQuery(
-      sessionId,
-      body.query,
-    );
+
+    return this.exerciseSessionService.executeQuery(sessionId, body.query);
   }
 
   /**
    * End an exercise session
    */
   @Delete(':sessionId')
-  async endSession(
-    @Param('sessionId') sessionId: string,
-    @Request() req,
-  ) {
+  async endSession(@Param('sessionId') sessionId: string, @Request() req) {
     // For demo purposes, using a fixed studentId
     const studentId = 1; // req.user.id;
-    const container = this.exerciseSessionService['dockerService'].getContainer(sessionId);
-    
+    const container =
+      this.exerciseSessionService['dockerService'].getContainer(sessionId);
+
     // Verify this session belongs to the current student
     if (!container || container.studentId !== studentId) {
       throw new UnauthorizedException('You do not have access to this session');
     }
-    
+
     return this.exerciseSessionService.endExerciseSession(sessionId);
   }
-} 
+}

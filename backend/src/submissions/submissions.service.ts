@@ -73,10 +73,11 @@ export class SubmissionsService {
 
     try {
       // Start or get an existing exercise session
-      const { sessionId } = await this.exerciseSessionService.startExerciseSession(
-        studentId,
-        exerciseId,
-      );
+      const { sessionId } =
+        await this.exerciseSessionService.startExerciseSession(
+          studentId,
+          exerciseId,
+        );
 
       // Execute both queries in the student's container
       // Execute student query

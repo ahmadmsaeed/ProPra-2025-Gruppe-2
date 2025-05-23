@@ -13,7 +13,7 @@ export class DatabaseAuditService {
     tableInfo: any,
   ): void {
     this.logger.log(
-      `Database created: "${database.name}" (ID: ${database.id}) by user ${authorId || 'unknown'} with ${tableInfo.tableCount} tables: ${tableInfo.tableNames.join(', ') || 'none detected'}`,
+      `Database created: "${String(database.name)}" (ID: ${database.id}) by user ${authorId || 'unknown'} with ${tableInfo.tableCount} tables: ${tableInfo.tableNames.join(', ') || 'none detected'}`,
     );
   }
 
@@ -22,7 +22,7 @@ export class DatabaseAuditService {
    */
   logDatabaseUpdate(database: any, userId: number | null, updates: any): void {
     this.logger.log(
-      `Database updated: "${database.name}" (ID: ${database.id}) by user ${userId || 'unknown'}. Fields updated: ${Object.keys(updates).join(', ')}`,
+      `Database updated: "${String(database.name)}" (ID: ${database.id}) by user ${userId || 'unknown'}. Fields updated: ${Object.keys(updates).join(', ')}`,
     );
   }
 
@@ -35,7 +35,7 @@ export class DatabaseAuditService {
     droppedTables: string[],
   ): void {
     this.logger.log(
-      `Database deleted: "${database.name}" (ID: ${database.id}) by user ${userId || 'unknown'}. Tables dropped: ${droppedTables.join(', ') || 'none'}`,
+      `Database deleted: "${String(database.name)}" (ID: ${database.id}) by user ${userId || 'unknown'}. Tables dropped: ${droppedTables.join(', ') || 'none'}`,
     );
   }
 

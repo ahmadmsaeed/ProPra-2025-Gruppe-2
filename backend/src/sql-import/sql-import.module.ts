@@ -14,13 +14,13 @@ import { DatabaseManagementService } from './database-management.service';
     SqlImportService,
     {
       provide: DatabaseImportService,
-      useClass: DatabaseImportService
+      useClass: DatabaseImportService,
     },
     DatabaseExecutionService,
     {
       provide: DatabaseManagementService,
-      useClass: DatabaseManagementService
-    }
+      useClass: DatabaseManagementService,
+    },
   ],
   exports: [SqlImportService],
 })

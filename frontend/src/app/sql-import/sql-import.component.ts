@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -20,6 +20,19 @@ import { DatabaseDetailsDialogComponent } from '../dialogs/database-details-dial
 import { EditDatabaseDialogComponent } from '../dialogs/edit-database-dialog.component';
 import { ErrorDialogComponent } from '../dialogs/error-dialog.component';
 import { SuccessDialogComponent } from '../success-dialog/success-dialog.component';
+
+interface Database {
+  id: number;
+  name: string;
+  schema: string;
+  seedData?: string;
+  authorId?: number;
+  author?: {
+    name: string;
+  };
+  createdAt?: Date;
+  warnings?: string[];
+}
 
 @Component({
   selector: 'app-sql-import',
@@ -44,13 +57,13 @@ import { SuccessDialogComponent } from '../success-dialog/success-dialog.compone
 })
 export class SqlImportComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef;
-  
-  databases: any[] = [];
+
+  databases: Database[] = [];
   displayedColumns: string[] = ['name', 'uploadedBy', 'actions'];
   selectedDatabaseId: number | null = null;
   sqlQuery = '';
   queryResult: any[] = [];
-  resultColumns: string[] = [];  
+  resultColumns: string[] = [];
   selectedFile: File | null = null;
   uploadProgress = 0;
   databaseName: string = '';
@@ -58,7 +71,7 @@ export class SqlImportComponent implements OnInit {
   isExecutingQuery = false;
   queryError: string | null = null;
   hasExecutedQuery = false;
-  
+
   constructor(
     public authService: AuthService,
     private http: HttpClient,
@@ -67,6 +80,7 @@ export class SqlImportComponent implements OnInit {
     private sqlImportService: SqlImportService,
     private cdr: ChangeDetectorRef
   ) {}
+
   ngOnInit(): void {
     // Force refresh databases when component initializes
     this.sqlImportService.refreshDatabases().subscribe({
@@ -75,97 +89,77 @@ export class SqlImportComponent implements OnInit {
         this.isLoading = false;
         this.cdr.detectChanges();
       },
-      error: (error) => {
-        this.showMessage('Fehler beim Laden der Datenbanken: ' + (error.error?.message || 'Unbekannter Fehler'));
+      error: (error: Error) => {
+        this.showErrorDialog('Fehler beim Laden der Datenbanken', error.message);
         this.isLoading = false;
         this.cdr.detectChanges();
       }
     });
-    this.hasExecutedQuery = false; // Initialize on component load
+
+    // Subscribe to upload progress updates
+    this.sqlImportService.getUploadProgress().subscribe(progress => {
+      this.uploadProgress = progress.progress;
+      this.cdr.detectChanges();
+    });
+
+    this.hasExecutedQuery = false;
   }
-  
-  loadDatabases() {
-    this.isLoading = true;
-    this.sqlImportService.getDatabases()
-      .subscribe({
-        next: (data) => {
-          // Store all database data, including dates for details dialog
-          this.databases = data;
-          this.isLoading = false;
-          this.cdr.markForCheck(); // Mark for check when data is loaded
-          // Use detectChanges instead of markForCheck to force immediate update
-          this.cdr.detectChanges();
-        },
-        error: (error) => {
-          this.showMessage('Fehler beim Laden der Datenbanken: ' + (error.error?.message || 'Unbekannter Fehler'));
-          this.isLoading = false;
-          this.cdr.detectChanges(); // Force UI update in case of error
-        }
-      });
-  }
-  
+
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       this.selectedFile = input.files[0];
+      // Reset any previous upload progress
+      this.uploadProgress = 0;
+      this.cdr.detectChanges();
     }
-  }  uploadFile() {
+  }
+
+  uploadFile() {
     if (!this.selectedFile) {
-      this.showMessage('Bitte wähle zuerst eine SQL-Datei aus');
+      this.showErrorDialog('Fehler', 'Bitte wähle zuerst eine SQL-Datei aus');
       return;
     }
-    
+
     // Set loading state to prevent multiple uploads
     this.isLoading = true;
     this.cdr.detectChanges();
-    
+
     // Add timestamp to help identify this upload in logs
     const requestId = new Date().getTime();
-    console.log(`[${requestId}] Starting upload of file: ${this.selectedFile.name}, Size: ${this.selectedFile.size} bytes, Type: ${this.selectedFile.type}`);
-    
-    // Use the sqlImport service for upload
+    console.log(`[${requestId}] Starting upload of file: ${this.selectedFile.name}`);
+
     this.sqlImportService.uploadDatabase(this.selectedFile, this.databaseName || undefined)
       .subscribe({
         next: (event: any) => {
-          if (event.type === HttpEventType.UploadProgress) {
-            if (event.total) {
-              this.uploadProgress = Math.round(100 * event.loaded / event.total);
-              console.log(`[${requestId}] Upload progress: ${this.uploadProgress}%`);
-              this.cdr.detectChanges(); // Ensure UI updates during upload
-            }
-          } else if (event.type === HttpEventType.Response) {
-            console.log(`[${requestId}] Upload successful, response:`, event.body);
-            const response = event.body;
-            
-            // Reset upload form fields
+          if (event.type === HttpEventType.Response) {
+            console.log(`[${requestId}] Upload complete, response:`, event.body);
+            const response = event.body as Database;
+
+            // Reset form
             this.selectedFile = null;
             this.databaseName = '';
             this.uploadProgress = 0;
             this.fileInput.nativeElement.value = '';
-            
-            // Force a complete refresh of the database list with extra delay
-            // to ensure backend processing completes
+
+            // Force refresh of the database list
             this.isLoading = true;
             this.cdr.detectChanges();
-            
+
             setTimeout(() => {
-              console.log(`[${requestId}] Refreshing database list after upload`);
-              this.sqlImportService.invalidateCache(); // Make sure cache is cleared
-              this.sqlImportService.getDatabases().subscribe({
+              this.sqlImportService.refreshDatabases().subscribe({
                 next: (databases) => {
-                  console.log(`[${requestId}] Databases refreshed after upload, count:`, databases.length);
                   this.databases = databases;
                   this.isLoading = false;
                   this.cdr.detectChanges();
-                  
-                  // Show success message after database list has been updated
-                  if (response && response.warnings && response.warnings.length > 0) {
+
+                  if (response?.warnings && response.warnings.length > 0) {
                     // Show success dialog with warnings
                     this.dialog.open(SuccessDialogComponent, {
                       width: '600px',
                       data: {
                         title: 'Import mit Warnungen',
-                        message: response.message || 'SQL-Datei wurde mit Warnungen importiert. Einige Daten wurden übersprungen, da sie bereits existieren.',
+                        message: this.formatWarningsMessage(response.warnings || []),
                         buttonText: 'Verstanden'
                       }
                     });
@@ -185,8 +179,7 @@ export class SqlImportComponent implements OnInit {
                   console.error(`[${requestId}] Failed to refresh databases after upload:`, err);
                   this.isLoading = false;
                   this.cdr.detectChanges();
-                  
-                  // Even if refresh fails, show success message for the upload
+
                   this.dialog.open(SuccessDialogComponent, {
                     width: '400px',
                     data: {
@@ -197,48 +190,25 @@ export class SqlImportComponent implements OnInit {
                   });
                 }
               });
-            }, 1000); // Small delay to ensure backend processing completes
+            }, 1000);
           }
         },
-        error: (error) => {
-          console.error('Raw upload error:', error);
+        error: (error: Error) => {
+          console.error(`[${requestId}] Upload failed:`, error);
 
           // Reset upload state
+          this.isLoading = false;
           this.uploadProgress = 0;
           this.selectedFile = null;
           this.fileInput.nativeElement.value = '';
+          this.cdr.detectChanges();
 
-          // Extract error message - trying different possible response structures
-          let errorMessage: string;
-          if (error?.error?.message) {
-            // Message might be a string or an array of strings
-            errorMessage = Array.isArray(error.error.message) 
-              ? error.error.message.join('\n') 
-              : error.error.message;
-          } else if (typeof error?.error === 'string') {
-            // Sometimes the error itself is a string
-            errorMessage = error.error;
-          } else if (error?.message) {
-            // Fallback to the error's message property
-            errorMessage = error.message;
-          } else {
-            // Default message when we can't determine the exact error
-            errorMessage = 'Die SQL-Datei konnte nicht importiert werden. Möglicherweise gibt es Konflikte mit bestehenden Daten.';
-          }
-
-          this.dialog.open(ErrorDialogComponent, {
-            width: '600px', // Wider dialog to accommodate longer messages
-            data: {
-              title: 'Import-Fehler',
-              message: errorMessage,
-              buttonText: 'Verstanden'
-            }
-          });
-          
-          this.cdr.detectChanges(); // Force UI update after error
+          // Show error dialog with detailed message
+          this.showErrorDialog('Import-Fehler', error.message);
         }
       });
   }
+
   executeQuery() {
     if (!this.selectedDatabaseId || !this.sqlQuery) {
       this.showMessage('Bitte wählen Sie eine Datenbank aus und geben Sie eine SQL-Abfrage ein');
@@ -250,18 +220,18 @@ export class SqlImportComponent implements OnInit {
     this.queryResult = [];
     this.resultColumns = [];
     this.hasExecutedQuery = true;
-    this.cdr.markForCheck(); // Mark for check before execution starts
+    this.cdr.markForCheck();
 
     this.sqlImportService.executeQuery(this.selectedDatabaseId, this.sqlQuery).subscribe({
       next: (result) => {
-        if (Array.isArray(result) && result.length > 0) {
-          this.queryResult = result;
-          this.resultColumns = Object.keys(result[0] || {});
+        if (result.results && Array.isArray(result.results) && result.results.length > 0) {
+          this.queryResult = result.results;
+          this.resultColumns = Object.keys(result.results[0] || {});
           // Show success message for SELECT queries
           if (this.sqlQuery.trim().toUpperCase().startsWith('SELECT')) {
-            this.showMessage(`Abfrage erfolgreich ausgeführt - ${result.length} Ergebnisse gefunden`);
+            this.showMessage(`Abfrage erfolgreich ausgeführt - ${result.results.length} Ergebnisse gefunden`);
           } else {
-            // Show success dialog for non-SELECT queries (INSERT, UPDATE, DELETE)
+            // Show success dialog for non-SELECT queries
             this.dialog.open(SuccessDialogComponent, {
               width: '400px',
               data: {
@@ -271,22 +241,23 @@ export class SqlImportComponent implements OnInit {
               }
             });
           }
-        } else if (Array.isArray(result)) {
-          // Empty array returned
-          this.queryResult = [];
-          this.resultColumns = [];
-          this.showMessage('Abfrage erfolgreich ausgeführt - keine Ergebnisse gefunden');
-        } else {
-          // Non-array result, maybe a message
-          this.queryResult = [{ message: 'Abfrage erfolgreich ausgeführt' }];
-          this.resultColumns = ['message'];
-          this.showMessage('Abfrage erfolgreich ausgeführt');
+        } else if (result.message) {
+          // Show success message for statements that don't return results
+          this.dialog.open(SuccessDialogComponent, {
+            width: '400px',
+            data: {
+              title: 'Abfrage erfolgreich',
+              message: result.message,
+              buttonText: 'OK'
+            }
+          });
         }
+
         this.isExecutingQuery = false;
-        this.cdr.detectChanges(); // Force update after result received
+        this.cdr.detectChanges();
       },
-      error: (error) => {
-        this.queryError = error.error?.message || 'Unbekannter Fehler';
+      error: (error: Error) => {
+        this.queryError = error.message;
         
         // Check for specific error types and provide more helpful messages
         if (this.queryError && 
@@ -309,10 +280,36 @@ export class SqlImportComponent implements OnInit {
         });
         
         this.isExecutingQuery = false;
-        this.cdr.detectChanges(); // Force update after error
-      }    });
+        this.cdr.detectChanges();
+      }
+    });
   }
-  viewDatabase(db: any) {
+
+  showMessage(message: string) {
+    this.snackBar.open(message, 'Schließen', {
+      duration: 5000,
+      horizontalPosition: 'center',
+      verticalPosition: 'bottom'
+    });
+  }
+
+  showErrorDialog(title: string, message: string) {
+    this.dialog.open(ErrorDialogComponent, {
+      width: '600px',
+      data: {
+        title: title,
+        message: message,
+        buttonText: 'Verstanden'
+      }
+    });
+  }
+
+  private formatWarningsMessage(warnings: string[]): string {
+    let message = 'SQL-Datei wurde importiert, aber es gab einige Warnungen:\n\n';
+    return message + warnings.map(warning => `• ${warning}`).join('\n');
+  }
+
+  viewDatabase(db: Database) {
     this.sqlImportService.getDatabase(db.id).subscribe({
       next: (database) => {
         // Create a new object with default values for missing fields
@@ -322,17 +319,18 @@ export class SqlImportComponent implements OnInit {
           seedData: database.seedData || ''
         };
         
-        const dialogRef = this.dialog.open(DatabaseDetailsDialogComponent, {
+        this.dialog.open(DatabaseDetailsDialogComponent, {
           width: '800px',
           data
         });
       },
-      error: (error) => {
-        this.showMessage('Fehler beim Laden der Datenbankdetails: ' + (error.error?.message || 'Unbekannter Fehler'));
+      error: (error: Error) => {
+        this.showMessage('Fehler beim Laden der Datenbankdetails: ' + error.message);
       }
     });
   }
-  editDatabase(db: any) {
+
+  editDatabase(db: Database) {
     const dialogRef = this.dialog.open(EditDatabaseDialogComponent, {
       width: '600px',
       data: db
@@ -351,27 +349,28 @@ export class SqlImportComponent implements OnInit {
               width: '400px',
               data: {
                 title: 'Aktualisierung erfolgreich',
-                message: `Datenbank "${db.name}" wurde erfolgreich aktualisiert.`,
+                message: `Datenbank "${String(db.name)}" wurde erfolgreich aktualisiert.`,
                 buttonText: 'OK'
               }
             });
           },
           error: (err) => {
             // Even if refresh fails, show success message for the update
-            this.showMessage(`Datenbank "${db.name}" erfolgreich aktualisiert. Die Liste konnte jedoch nicht aktualisiert werden.`);
+            this.showMessage(`Datenbank "${String(db.name)}" erfolgreich aktualisiert. Die Liste konnte jedoch nicht aktualisiert werden.`);
             this.cdr.detectChanges();
           }
-        });      }
+        });      
+      }
     });
   }
-  
-  confirmDelete(db: any) {
-    if (confirm(`Willst du die Datenbank "${db.name}" wirklich löschen?`)) {
+
+  confirmDelete(db: Database) {
+    if (confirm(`Willst du die Datenbank "${String(db.name)}" wirklich löschen?`)) {
       // Set a loading state immediately to prevent multiple clicks
       this.isLoading = true;
       this.cdr.detectChanges();
       
-      console.log(`Attempting to delete database ID: ${db.id}, Name: ${db.name}`);
+      console.log(`Attempting to delete database ID: ${db.id}, Name: ${String(db.name)}`);
       
       this.sqlImportService.deleteDatabase(db.id).subscribe({
         next: () => {
@@ -390,7 +389,7 @@ export class SqlImportComponent implements OnInit {
                 width: '400px',
                 data: {
                   title: 'Löschvorgang erfolgreich',
-                  message: `Datenbank "${db.name}" wurde erfolgreich gelöscht.`,
+                  message: `Datenbank "${String(db.name)}" wurde erfolgreich gelöscht.`,
                   buttonText: 'OK'
                 }
               });
@@ -398,13 +397,13 @@ export class SqlImportComponent implements OnInit {
             error: (err) => {
               console.error('Failed to refresh databases after deletion:', err);
               // Even if refresh fails, show success message for the deletion
-              this.showMessage(`Datenbank "${db.name}" erfolgreich gelöscht. Die Liste konnte jedoch nicht aktualisiert werden.`);
+              this.showMessage(`Datenbank "${String(db.name)}" erfolgreich gelöscht. Die Liste konnte jedoch nicht aktualisiert werden.`);
               this.isLoading = false;
               this.cdr.detectChanges();
             }
           });
         },
-        error: (error) => {
+        error: (error: Error) => {
           console.error('Database deletion error:', error);
           this.isLoading = false;
           this.cdr.detectChanges();
@@ -414,8 +413,8 @@ export class SqlImportComponent implements OnInit {
             width: '400px',
             data: {
               title: 'Fehler beim Löschen',
-              message: error.error?.message || 
-                `Die Datenbank "${db.name}" konnte nicht gelöscht werden. Möglicherweise wird sie von einer Übung verwendet.`,
+              message: error.message || 
+                `Die Datenbank "${String(db.name)}" konnte nicht gelöscht werden. Möglicherweise wird sie von einer Übung verwendet.`,
               buttonText: 'Verstanden'
             }
           });
@@ -424,15 +423,7 @@ export class SqlImportComponent implements OnInit {
     }
   }
 
-  private showMessage(message: string) {
-    this.snackBar.open(message, 'Schließen', {
-      duration: 5000,
-      horizontalPosition: 'center',
-      verticalPosition: 'bottom'
-    });
-  }
-
-  canEdit(db: any): boolean {
+  canEdit(db: Database): boolean {
     const user = JSON.parse(localStorage.getItem('user') || 'null');
     return this.authService.isTeacher() || 
            (this.authService.isTutor() && user?.sub === db.authorId);

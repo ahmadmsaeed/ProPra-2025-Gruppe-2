@@ -12,15 +12,21 @@ export class ErrorService {
     // Check if it's a PostgreSQL error with a code
     if (error && error.code) {
       // Log full error for debugging
-      console.log(`Processing PostgreSQL error with code ${error.code}: ${error.message}`);
+      console.log(
+        `Processing PostgreSQL error with code ${error.code}: ${error.message}`,
+      );
 
       switch (error.code) {
         case '42P07': // relation already exists
           return `Tabelle existiert bereits (kann ignoriert werden)`;
         case '23505': // unique violation
           // Include details about which constraint was violated if available
-          const constraintMatch = error.message.match(/violates unique constraint "([^"]+)"/);
-          const constraint = constraintMatch ? constraintMatch[1] : 'unbekannter Schlüssel';
+          const constraintMatch = error.message.match(
+            /violates unique constraint "([^"]+)"/,
+          );
+          const constraint = constraintMatch
+            ? constraintMatch[1]
+            : 'unbekannter Schlüssel';
           return `Datensatz mit diesem Schlüssel (${constraint}) existiert bereits (kann ignoriert werden)`;
         case '42P01': // relation does not exist
           // Try to extract the table name from the error message
@@ -31,7 +37,9 @@ export class ErrorService {
           return `Die Tabelle "${tableName}" existiert nicht. Überprüfen Sie den Tabellennamen oder erstellen Sie die Tabelle zuerst.`;
         case '42703': // column does not exist
           // Try to extract the column name from the error message
-          const columnMatch = error.message.match(/column "([^"]+)" does not exist/);
+          const columnMatch = error.message.match(
+            /column "([^"]+)" does not exist/,
+          );
           const columnName = columnMatch ? columnMatch[1] : 'unbekannt';
           return `Die Spalte "${columnName}" existiert nicht: ${error.message}`;
         case '23503': // foreign key violation
@@ -56,7 +64,9 @@ export class ErrorService {
       // 23505: unique violation (duplicate key)
       // P2010: Prisma raw query error that's usually non-critical
       // 42P01: relation does not exist (in some contexts)
-      console.log(`Checking if error code ${error.code} is non-critical. Message: ${error.message}`);
+      console.log(
+        `Checking if error code ${error.code} is non-critical. Message: ${error.message}`,
+      );
       return ['42P07', '23505', 'P2010', '42P01'].includes(error.code);
     }
     return false;

@@ -33,6 +33,15 @@ export class AuthController {
   }
 
   /**
+   * Refreshes the JWT token for the current user
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('refresh-token')
+  async refreshToken(@Req() req) {
+    return this.authService.refreshToken(req.user.sub);
+  }
+
+  /**
    * Returns the current user's data (JWT required).
    */
   @UseGuards(JwtAuthGuard, BlockedUserGuard)

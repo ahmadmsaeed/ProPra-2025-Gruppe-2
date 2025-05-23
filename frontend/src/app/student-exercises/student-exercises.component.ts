@@ -439,7 +439,7 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
     this.updateState({ isLoadingTableData: true });
     
     const query = `SELECT * FROM ${tableName}`;
-    this.sqlImportService.executeQuery(this.selectedExercise.databaseSchemaId, query, true)
+    this.sqlImportService.executeQuery(this.selectedExercise.databaseSchemaId, query)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -452,11 +452,11 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (result: any) => {
-          if (Array.isArray(result) && result.length > 0) {
-            this.tableData = result;
-            this.tableColumns = Object.keys(result[0]);
+          if (Array.isArray(result?.results) && result.results.length > 0) {
+            this.tableData = result.results;
+            this.tableColumns = Object.keys(result.results[0]);
             // Cache the result
-            this.tableDataCache.set(cacheKey, result);
+            this.tableDataCache.set(cacheKey, result.results);
           } else {
             this.tableData = [];
             this.tableColumns = [];
@@ -554,7 +554,7 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
     this.hasExecutedQuery = true;
     
     // First, try executing the query to make sure it's valid
-    this.sqlImportService.executeQuery(this.selectedExercise.databaseSchemaId, this.userQuery, false)
+    this.sqlImportService.executeQuery(this.selectedExercise.databaseSchemaId, this.userQuery)
       .pipe(
         takeUntil(this.destroy$),
         catchError((error: HttpErrorResponse) => {
@@ -709,4 +709,4 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
   private findSeedDataForTable(tableName: string): string[] {
     return this.tableSeedDataMap[tableName] || [];
   }
-} 
+}

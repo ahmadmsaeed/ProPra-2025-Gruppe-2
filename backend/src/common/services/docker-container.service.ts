@@ -18,33 +18,37 @@ interface DockerContainer {
 @Injectable()
 export class DockerContainerService {
   private readonly logger = new Logger(DockerContainerService.name);
-  
+
   // In-memory store of active containers (would be replaced with database in production)
   private containers: Map<string, DockerContainer> = new Map();
-  
+
   // Track ports in use to avoid conflicts
   private usedPorts: Set<number> = new Set();
   private readonly PORT_RANGE_START = 5434; // Start after main PostgreSQL port 5433
-  private readonly PORT_RANGE_END = 5534;   // Allow 100 concurrent container ports
+  private readonly PORT_RANGE_END = 5534; // Allow 100 concurrent container ports
 
   constructor(
     @Inject(forwardRef(() => PrismaService))
-    private readonly prisma: PrismaService
+    private readonly prisma: PrismaService,
   ) {}
 
   /**
    * Create a new PostgreSQL container for a specific student and exercise
    */
-  async createContainer(studentId: number, exerciseId: number, databaseId: number): Promise<DockerContainer> {
+  async createContainer(
+    studentId: number,
+    exerciseId: number,
+    databaseId: number,
+  ): Promise<DockerContainer> {
     const sessionId = randomUUID();
     const port = await this.findAvailablePort();
-    
+
     if (!port) {
       throw new Error('No available ports for new container');
     }
 
     const containerName = `sql-exercise-${studentId}-${exerciseId}-${sessionId}`;
-    
+
     // Create container record
     const container: DockerContainer = {
       id: sessionId,
@@ -56,23 +60,26 @@ export class DockerContainerService {
       createdAt: new Date(),
       status: 'starting',
     };
-    
+
     // Store container info
     this.containers.set(sessionId, container);
     this.usedPorts.add(port);
-    
+
     try {
       // Start the container using Docker command
-      const containerId = await this.startPostgresContainer(containerName, port);
-      
+      const containerId = await this.startPostgresContainer(
+        containerName,
+        port,
+      );
+
       // Update container with ID
       container.containerId = containerId;
       container.status = 'running';
       this.containers.set(sessionId, container);
-      
+
       // Initialize database schema
       await this.initializeDatabase(container, databaseId);
-      
+
       return container;
     } catch (error) {
       // Clean up on error
@@ -89,68 +96,79 @@ export class DockerContainerService {
   getContainer(sessionId: string): DockerContainer | undefined {
     return this.containers.get(sessionId);
   }
-  
+
   /**
    * Get active container for a student-exercise pair if exists
    */
-  getActiveContainerForStudent(studentId: number, exerciseId: number): DockerContainer | undefined {
+  getActiveContainerForStudent(
+    studentId: number,
+    exerciseId: number,
+  ): DockerContainer | undefined {
     for (const container of this.containers.values()) {
-      if (container.studentId === studentId && 
-          container.exerciseId === exerciseId && 
-          container.status === 'running') {
+      if (
+        container.studentId === studentId &&
+        container.exerciseId === exerciseId &&
+        container.status === 'running'
+      ) {
         return container;
       }
     }
     return undefined;
   }
-  
+
   /**
    * Stop and remove a container
    */
   async stopContainer(sessionId: string): Promise<boolean> {
     const container = this.containers.get(sessionId);
-    
+
     if (!container) {
       return false;
     }
-    
+
     try {
       if (container.containerId) {
         await this.executeCommand('docker', ['stop', container.containerId]);
         await this.executeCommand('docker', ['rm', container.containerId]);
       }
-      
+
       this.containers.delete(sessionId);
       this.usedPorts.delete(container.port);
-      
+
       return true;
     } catch (error) {
-      this.logger.error(`Failed to stop container ${sessionId}: ${error.message}`);
+      this.logger.error(
+        `Failed to stop container ${sessionId}: ${error.message}`,
+      );
       container.status = 'error';
       this.containers.set(sessionId, container);
       return false;
     }
   }
-  
+
   /**
    * Get database connection string for a container
    */
   getConnectionString(sessionId: string): string {
     const container = this.containers.get(sessionId);
-    
+
     if (!container || container.status !== 'running') {
       throw new Error('Container not available');
     }
-    
+
     return `postgresql://postgres:postgres@localhost:${container.port}/postgres`;
   }
-  
+
   /**
    * Find available port for new container
    */
   private async findAvailablePort(): Promise<number> {
     // Get list of ports already in use by running containers
-    const { stdout } = await this.executeCommand('docker', ['ps', '--format', '{{.Ports}}']);
+    const { stdout } = await this.executeCommand('docker', [
+      'ps',
+      '--format',
+      '{{.Ports}}',
+    ]);
     const usedPorts = new Set<number>();
     const portRegex = /:(\d+)->/g;
     let match;
@@ -159,59 +177,77 @@ export class DockerContainerService {
     }
 
     // Find a free port in the range
-    for (let port = this.PORT_RANGE_START; port <= this.PORT_RANGE_END; port++) {
+    for (
+      let port = this.PORT_RANGE_START;
+      port <= this.PORT_RANGE_END;
+      port++
+    ) {
       if (!this.usedPorts.has(port) && !usedPorts.has(port)) {
         return port;
       }
     }
     return 0; // No available ports
   }
-  
+
   /**
    * Start a PostgreSQL container
    */
-  private async startPostgresContainer(name: string, port: number): Promise<string> {
+  private async startPostgresContainer(
+    name: string,
+    port: number,
+  ): Promise<string> {
     const args = [
       'run',
       '-d',
-      '--name', name,
-      '-e', 'POSTGRES_PASSWORD=postgres',
-      '-e', 'POSTGRES_USER=postgres',
-      '-p', `${port}:5432`,
-      'postgres:15'
+      '--name',
+      name,
+      '-e',
+      'POSTGRES_PASSWORD=postgres',
+      '-e',
+      'POSTGRES_USER=postgres',
+      '-p',
+      `${port}:5432`,
+      'postgres:15',
     ];
-    
+
     const { stdout } = await this.executeCommand('docker', args);
     const containerId = stdout.trim();
-    
+
     // Log the port mapping
-    this.logger.log(`Container ${name} started with port mapping: ${port}:5432`);
-    
+    this.logger.log(
+      `Container ${name} started with port mapping: ${port}:5432`,
+    );
+
     // Wait a bit for the container to initialize
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+
     // Wait for PostgreSQL to be ready
     await this.waitForPostgres(port);
-    
+
     return containerId;
   }
-  
+
   /**
    * Initialize the database with schema and seed data
    */
-  private async initializeDatabase(container: DockerContainer, databaseId: number): Promise<void> {
+  private async initializeDatabase(
+    container: DockerContainer,
+    databaseId: number,
+  ): Promise<void> {
     try {
       // Get the database schema and seed data from Prisma
       const database = await this.prisma.database.findUnique({
         where: { id: databaseId },
       });
-      
+
       if (!database) {
         throw new Error(`Database with ID ${databaseId} not found`);
       }
-      
-      this.logger.log(`Initializing database for container ${container.id} with database schema from ID ${databaseId}`);
-      
+
+      this.logger.log(
+        `Initializing database for container ${container.id} with database schema from ID ${databaseId}`,
+      );
+
       // Create a connection to the container database
       // Here we use "pg" to connect directly
       const client = new Client({
@@ -221,17 +257,17 @@ export class DockerContainerService {
         password: 'postgres',
         database: 'postgres',
       });
-      
+
       // Connect to the database
       await client.connect();
-      
+
       try {
         // Execute schema and seed data
         if (database.schema && database.schema.trim()) {
           this.logger.log(`Executing schema on container ${container.id}`);
           await client.query(database.schema);
         }
-        
+
         if (database.seedData && database.seedData.trim()) {
           this.logger.log(`Executing seed data on container ${container.id}`);
           await client.query(database.seedData);
@@ -244,50 +280,58 @@ export class DockerContainerService {
       throw error;
     }
   }
-  
+
   /**
    * Wait for PostgreSQL to be ready
    */
   private async waitForPostgres(port: number): Promise<void> {
     const maxRetries = 60;
     let retries = 0;
-    
+
     while (retries < maxRetries) {
       try {
-        const { stdout, stderr } = await this.executeCommand('pg_isready', ['-h', 'localhost', '-p', port.toString()]);
+        const { stdout, stderr } = await this.executeCommand('pg_isready', [
+          '-h',
+          'localhost',
+          '-p',
+          port.toString(),
+        ]);
         this.logger.log(`pg_isready output: ${stdout} ${stderr}`);
         return;
       } catch (error) {
         retries++;
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
       }
     }
-    
+
     throw new Error(`PostgreSQL not ready after ${maxRetries} attempts`);
   }
-  
+
   /**
    * Execute a command and return stdout
    */
-  private executeCommand(command: string, args: string[]): Promise<{ stdout: string, stderr: string }> {
+  private executeCommand(
+    command: string,
+    args: string[],
+  ): Promise<{ stdout: string; stderr: string }> {
     return new Promise((resolve, reject) => {
       const process = spawn(command, args);
-      
+
       let stdout = '';
       let stderr = '';
-      
+
       process.stdout.on('data', (data) => {
         stdout += data.toString();
       });
-      
+
       process.stderr.on('data', (data) => {
         stderr += data.toString();
       });
-      
+
       process.on('error', (error) => {
         reject(error);
       });
-      
+
       process.on('close', (code) => {
         if (code === 0) {
           resolve({ stdout, stderr });
@@ -297,4 +341,4 @@ export class DockerContainerService {
       });
     });
   }
-} 
+}

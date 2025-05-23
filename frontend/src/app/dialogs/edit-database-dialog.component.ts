@@ -7,12 +7,26 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import Database from '../models/sql-import.model';
 import { SqlImportService } from '../services/sql-import.service';
 import { HttpEventType } from '@angular/common/http';
 
-@Component({  selector: 'app-edit-database-dialog',
-  standalone: true,  imports: [
+interface Database {
+  id: number;
+  name: string;
+  schema: string;
+  seedData?: string;
+  authorId?: number;
+  author?: {
+    name: string;
+  };
+  createdAt?: Date;
+  warnings?: string[];
+}
+
+@Component({
+  selector: 'app-edit-database-dialog',
+  standalone: true,
+  imports: [
     CommonModule,
     FormsModule,
     MatDialogModule,
@@ -39,7 +53,7 @@ export class EditDatabaseDialogComponent {
     this.database = { ...data };
   }
 
-  onFileSelected(event: Event) {
+  onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files && input.files.length > 0) {
       this.selectedFile = input.files[0];
@@ -62,11 +76,11 @@ export class EditDatabaseDialogComponent {
       databaseUpdate, 
       this.selectedFile || undefined
     ).subscribe({
-      next: (response) => {
+      next: (response: Database) => {
         console.log('Database updated successfully:', response);
         this.dialogRef.close(true);
       },
-      error: (error) => {
+      error: (error: Error) => {
         console.error('Error updating database:', error);
         this.dialogRef.close(false);
       }

@@ -26,21 +26,27 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
       throw new UnauthorizedException('Invalid authorization token');
     }
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { isBlocked: true },
-    });
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { isBlocked: true },
+      });
 
-    if (!user) {
-      throw new UnauthorizedException('User not found');
+      if (!user) {
+        console.error(`User with ID ${userId} not found in database`);
+        throw new UnauthorizedException('User not found');
+      }
+
+      if (user.isBlocked) {
+        throw new UnauthorizedException(
+          'Account is blocked. Please contact support.',
+        );
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in JWT Auth Guard:', error);
+      throw error;
     }
-
-    if (user.isBlocked) {
-      throw new UnauthorizedException(
-        'Account is blocked. Please contact support.',
-      );
-    }
-
-    return true;
   }
 }
