@@ -8,12 +8,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SqlImportService } from '../sql-import/sql-import.service';
+import { ExerciseSessionService } from '../common/services/exercise-session.service';
 
 @Injectable()
 export class SubmissionsService {
   constructor(
     private prisma: PrismaService,
     private sqlImportService: SqlImportService,
+    private exerciseSessionService: ExerciseSessionService,
   ) {}
 
   /**
@@ -69,17 +71,23 @@ export class SubmissionsService {
       throw new NotFoundException('Exercise not found');
     }
 
-    // Execute both queries and compare results
     try {
+      // Start or get an existing exercise session
+      const { sessionId } = await this.exerciseSessionService.startExerciseSession(
+        studentId,
+        exerciseId,
+      );
+
+      // Execute both queries in the student's container
       // Execute student query
-      const studentResult = await this.sqlImportService.executeQuery(
-        exercise.databaseSchemaId,
+      const studentResult = await this.exerciseSessionService.executeQuery(
+        sessionId,
         query,
       );
 
       // Execute solution query
-      const solutionResult = await this.sqlImportService.executeQuery(
-        exercise.databaseSchemaId,
+      const solutionResult = await this.exerciseSessionService.executeQuery(
+        sessionId,
         exercise.solutionQuery,
       );
 

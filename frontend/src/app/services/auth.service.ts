@@ -5,6 +5,7 @@ import { tap, catchError, takeUntil, finalize, shareReplay, map } from 'rxjs/ope
 import { environment } from '../../environments/environment';
 import { Router } from '@angular/router';
 import { jwtDecode } from 'jwt-decode';
+import { ExerciseSessionService } from './exercise-session.service';
 
 export type UserRole = 'TEACHER' | 'TUTOR' | 'STUDENT';
 
@@ -35,7 +36,11 @@ export class AuthService implements OnDestroy {
   currentUser$ = this.currentUserSubject.asObservable();
   isLoggedIn$ = this.currentUser$.pipe(map(user => !!user));
   
-  constructor(private http: HttpClient, private router: Router) {
+  constructor(
+    private http: HttpClient, 
+    private router: Router,
+    private exerciseSessionService: ExerciseSessionService
+  ) {
     this.initializeFromStorage();
     this.setupActivityMonitoring();
   }
@@ -202,6 +207,25 @@ export class AuthService implements OnDestroy {
    * Loggt den User aus.
    */
   logout(redirect: boolean = true): void {
+    // End any active exercise session
+    const currentUser = this.getCurrentUser();
+    if (currentUser) {
+      // Get the current session ID from localStorage
+      const sessionId = localStorage.getItem(`${this.storagePrefix}exercise_session`);
+      if (sessionId) {
+        this.exerciseSessionService.endSession(sessionId)
+          .pipe(takeUntil(this.destroy$))
+          .subscribe({
+            next: () => {
+              localStorage.removeItem(`${this.storagePrefix}exercise_session`);
+            },
+            error: (error) => {
+              console.error('Error ending exercise session:', error);
+            }
+          });
+      }
+    }
+
     this.clearExpirationTimer();
     this.clearStoredAuthData();
     this.currentUserSubject.next(null);

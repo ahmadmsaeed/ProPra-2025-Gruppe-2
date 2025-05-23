@@ -10,6 +10,9 @@ import { DatabaseValidatorService } from './services/database-validator.service'
 import { DatabaseOwnershipService } from './services/database-ownership.service';
 import { DatabaseExportService } from './services/database-export.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { DockerContainerService } from './services/docker-container.service';
+import { ExerciseSessionService } from './services/exercise-session.service';
+import { ContainerDatabaseClientService } from './services/container-database-client.service';
 
 @Module({
   imports: [PrismaModule],
@@ -24,6 +27,9 @@ import { PrismaModule } from '../prisma/prisma.module';
     DatabaseValidatorService,
     DatabaseOwnershipService,
     DatabaseExportService,
+    DockerContainerService,
+    ExerciseSessionService,
+    ContainerDatabaseClientService,
   ],
   exports: [
     ErrorService,
@@ -36,6 +42,9 @@ import { PrismaModule } from '../prisma/prisma.module';
     DatabaseValidatorService,
     DatabaseOwnershipService,
     DatabaseExportService,
+    DockerContainerService,
+    ExerciseSessionService,
+    ContainerDatabaseClientService,
   ],
 })
 export class CommonModule {}

@@ -12,14 +12,16 @@ export class DatabaseOwnershipService {
 
   /**
    * Validates if a user has permission to view a database
-   * All authenticated users (STUDENT, TUTOR, TEACHER) can view databases
+   * All authenticated users (STUDENT, TUTOR, TEACHER) can view all databases
+   * This ensures that databases imported by tutors or teachers are visible to everyone
    */
   async canViewDatabase(databaseId: number): Promise<boolean> {
     const database = await this.prisma.database.findUnique({
       where: { id: databaseId },
     });
 
-    return !!database; // Any authenticated user can view an existing database
+    // All databases are visible to all authenticated users
+    return !!database;
   }
 
   /**

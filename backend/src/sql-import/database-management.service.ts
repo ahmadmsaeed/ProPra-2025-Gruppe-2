@@ -307,6 +307,7 @@ export class DatabaseManagementService {
 
   /**
    * Creates a database entry from processed SQL data
+   * This database will be visible to all users (students, tutors, and teachers)
    */
   async createDatabaseEntry(
     name: string,
@@ -324,9 +325,9 @@ export class DatabaseManagementService {
     // Validate the schema
     const validationResult = await this.validateDatabaseSchemaAndTables(schema, tableInfo);
     
-    console.log(`Creating database entry with name: ${name}`);
+    console.log(`Creating database entry with name: ${name} - This database will be visible to all users`);
 
-    // Create database entry
+    // Create database entry - all databases are visible to all users
     const database = await this.prisma.database.create({
       data: {
         name: name,

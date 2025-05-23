@@ -2,6 +2,32 @@
   <h1>SQL-Übungen</h1>
   
   <div class="exercises-container" *ngIf="!(state$ | async)?.isLoading && !selectedExercise">
+    <!-- Database Selection -->
+    <div class="database-selection" *ngIf="!(state$ | async)?.isLoadingDatabases">
+      <mat-form-field appearance="fill">
+        <mat-label>Datenbank auswählen</mat-label>
+        <mat-select 
+          [(value)]="selectedDatabaseId" 
+          (selectionChange)="onDatabaseSelect($event.value)"
+          aria-label="Datenbank auswählen"
+          [attr.aria-describedby]="'database-select-description'">
+          <mat-option [value]="null">Alle Datenbanken</mat-option>
+          <mat-option *ngFor="let database of databases" [value]="database.id">
+            {{ database.name }} ({{ database.uploadedBy }})
+          </mat-option>
+        </mat-select>
+        <mat-hint id="database-select-description">
+          Wähle eine Datenbank, um die zugehörigen Übungen anzuzeigen
+        </mat-hint>
+      </mat-form-field>
+    </div>
+
+    <!-- Database Loading State -->
+    <div class="loading-container" *ngIf="(state$ | async)?.isLoadingDatabases">
+      <mat-spinner diameter="30"></mat-spinner>
+      <p>Lade Datenbanken...</p>
+    </div>
+
     <div class="exercises-grid">
       <mat-card *ngFor="let exercise of exercises" class="exercise-card" (click)="selectExercise(exercise)">
         <mat-card-content>
@@ -25,7 +51,12 @@
         <div class="no-exercises">
           <mat-icon>school</mat-icon>
           <h2>Keine Übungen verfügbar</h2>
-          <p>Aktuell sind keine Übungen für dich verfügbar. Bitte schaue später wieder vorbei.</p>
+          <p *ngIf="selectedDatabaseId">
+            Keine Übungen für die ausgewählte Datenbank gefunden.
+          </p>
+          <p *ngIf="!selectedDatabaseId">
+            Aktuell sind keine Übungen für dich verfügbar. Bitte schaue später wieder vorbei.
+          </p>
         </div>
       </div>
     </div>

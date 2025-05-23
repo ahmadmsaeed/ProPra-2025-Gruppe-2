@@ -33,7 +33,16 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTooltipModule } from '@angular/material/tooltip';
 
+import { ExerciseSessionService } from '../services/exercise-session.service';
+
 // Interfaces for better type safety
+interface Database {
+  id: number;
+  name: string;
+  authorId?: number;
+  uploadedBy?: string;  // Made optional to match service model
+}
+
 interface DatabaseTable {
   tableName: string;
   columns: TableColumn[];
@@ -52,6 +61,12 @@ interface ComponentState {
   hasError: boolean;
   errorMessage: string | null;
   isLoadingTableData: boolean;
+  isLoadingDatabases: boolean;  // Added new state for database loading
+}
+
+interface ExerciseSession {
+  sessionId: string;
+  message: string;
 }
 
 @Component({
@@ -89,7 +104,8 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
     isExecuting: false,
     hasError: false,
     errorMessage: null,
-    isLoadingTableData: false
+    isLoadingTableData: false,
+    isLoadingDatabases: false  // Added new state for database loading
   });
   
   // Observable of the current state that can be used in the template
@@ -99,7 +115,8 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
   activeTab: 'schema' | 'data' = 'schema';
   
   // Exercises data
-  exercises: Exercise[] = [];
+  private allExercises: Exercise[] = [];  // Store all exercises
+  exercises: Exercise[] = [];  // Filtered exercises
   selectedExercise: Exercise | null = null;
   userQuery: string = '';
   lastSubmission: Submission | null = null;
@@ -107,6 +124,10 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
   resultColumns: string[] = [];
   hasExecutedQuery: boolean = false;
   executionTime: number = 0;
+  
+  // Database selection
+  databases: Database[] = [];
+  selectedDatabaseId: number | null = null;
   
   // Database schema & data
   databaseTables: DatabaseTable[] = [];
@@ -118,10 +139,13 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
   // Cache for database schemas to avoid unnecessary API calls
   private schemaCache: Record<number, {schema: string, seedData?: string}> = {};
 
+  private currentSessionId: string | null = null;
+
   constructor(
     private exerciseService: ExerciseService,
     private submissionService: SubmissionService,
     private sqlImportService: SqlImportService,
+    private exerciseSessionService: ExerciseSessionService,
     private snackBar: MatSnackBar,
     private http: HttpClient,
     private cdr: ChangeDetectorRef
@@ -129,6 +153,7 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadExercises();
+    this.loadDatabases();
     
     // Comment out the auto-execute feature for now
     /*
@@ -175,13 +200,52 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
       )
       .subscribe({
         next: (exercises) => {
-          this.exercises = exercises;
+          this.allExercises = exercises;
+          this.filterExercises();  // Apply initial filtering
           this.cdr.markForCheck();
         },
         error: (error: HttpErrorResponse) => {
           this.handleError(error, 'Error loading exercises');
         }
       });
+  }
+
+  loadDatabases(): void {
+    this.updateState({ isLoadingDatabases: true, hasError: false, errorMessage: null });
+    
+    this.sqlImportService.getDatabases()
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.updateState({ isLoadingDatabases: false });
+        }),
+        catchError((error: HttpErrorResponse) => {
+          this.handleError(error, 'Error loading databases');
+          return of([]);
+        })
+      )
+      .subscribe({
+        next: (databases) => {
+          this.databases = databases;
+          this.cdr.markForCheck();
+        }
+      });
+  }
+
+  onDatabaseSelect(databaseId: number | null): void {
+    this.selectedDatabaseId = databaseId;
+    this.filterExercises();
+  }
+
+  private filterExercises(): void {
+    if (this.selectedDatabaseId === null) {
+      this.exercises = [...this.allExercises];
+    } else {
+      this.exercises = this.allExercises.filter(
+        exercise => exercise.database.id === this.selectedDatabaseId
+      );
+    }
+    this.cdr.markForCheck();
   }
 
   selectExercise(exercise: Exercise): void {
@@ -199,8 +263,34 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
     this.tableData = [];
     this.tableColumns = [];
     
+    // Start a new exercise session
+    this.startExerciseSession(exercise.id);
+    
     this.loadDatabaseSchema(exercise.databaseSchemaId);
     this.cdr.markForCheck();
+  }
+
+  private startExerciseSession(exerciseId: number): void {
+    this.updateState({ isLoading: true, hasError: false, errorMessage: null });
+    
+    this.exerciseSessionService.startSession(exerciseId)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.updateState({ isLoading: false });
+        })
+      )
+      .subscribe({
+        next: (session: ExerciseSession) => {
+          this.currentSessionId = session.sessionId;
+          localStorage.setItem('sql_learning_exercise_session', session.sessionId);
+          this.showMessage(session.message, 'info-snackbar');
+          this.cdr.markForCheck();
+        },
+        error: (error: HttpErrorResponse) => {
+          this.handleError(error, 'Error starting exercise session');
+        }
+      });
   }
 
   loadDatabaseSchema(databaseId: number): void {
@@ -385,6 +475,7 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
   }
 
   backToExercises(): void {
+    this.currentSessionId = null;
     this.selectedExercise = null;
     this.userQuery = '';
     this.userQuerySubject.next('');
@@ -410,16 +501,7 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
   }
 
   executeQuery(): void {
-    if (!this.selectedExercise || !this.userQuery) return;
-    
-    // Reset the lastSubmission when executing a new query
-    this.lastSubmission = null;
-    
-    this.executeQueryInternal(this.userQuery, false);
-  }
-  
-  private executeQueryInternal(query: string, isPreview: boolean = false): void {
-    if (!this.selectedExercise) return;
+    if (!this.selectedExercise || !this.userQuery || !this.currentSessionId) return;
     
     this.updateState({ 
       isExecuting: true, 
@@ -430,7 +512,7 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
     
     const startTime = performance.now();
     
-    this.sqlImportService.executeQuery(this.selectedExercise.databaseSchemaId, query, false)
+    this.exerciseSessionService.executeQuery(this.currentSessionId, this.userQuery)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -448,15 +530,13 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
           if (Array.isArray(result)) {
             this.queryResults = result;
             this.resultColumns = result.length > 0 ? Object.keys(result[0]) : [];
-            if (result.length === 0 && !isPreview) {
+            if (result.length === 0) {
               this.showMessage("The query was executed successfully, but returned no results.", "info-snackbar");
             }
           } else {
             this.queryResults = [];
             this.resultColumns = [];
-            if (!isPreview) {
-              this.showMessage("The query was executed successfully with no result set returned.", "info-snackbar");
-            }
+            this.showMessage("The query was executed successfully with no result set returned.", "info-snackbar");
           }
           this.cdr.markForCheck();
         }

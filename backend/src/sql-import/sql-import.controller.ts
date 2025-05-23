@@ -46,6 +46,11 @@ export class SqlImportController {
   }
 
   // Databases endpoints
+  /**
+   * Get all available databases
+   * All databases are visible to all authenticated users (STUDENT, TUTOR, TEACHER)
+   * This ensures that databases imported by tutors or teachers are visible to everyone
+   */
   @Get('databases')
   @Roles(Role.TEACHER, Role.TUTOR, Role.STUDENT)
   async getDatabases() {
