@@ -1,16 +1,22 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Role } from '@prisma/client';
+import { Role, User } from '../types/models';
 import * as bcrypt from 'bcryptjs';
 
-interface CreateUserDto {
+export interface CreateUserDto {
   email: string;
   password: string;
   name: string;
   role: Role;
 }
 
-interface UpdateUserDto {
+export interface UpdateUserDto {
   email?: string;
   password?: string;
   name?: string;
@@ -21,124 +27,155 @@ interface UpdateUserDto {
 export class AdminService {
   constructor(private prisma: PrismaService) {}
 
-  // Define a reusable select object to avoid duplication
   private readonly userSelect = {
     id: true,
     email: true,
     name: true,
-    createdAt: true,
     role: true,
     isBlocked: true,
+    createdAt: true,
   };
 
-  async listTeachers() {
-    // Get both teachers and tutors
-    return this.prisma.user.findMany({
-      where: { 
-        OR: [
-          { role: Role.TEACHER },
-          { role: Role.TUTOR }
-        ]
-      },
+  async listTeachers(): Promise<Omit<User, 'password'>[]> {
+    const users = await this.prisma.user.findMany({
+      where: { role: Role.TEACHER },
       select: this.userSelect,
     });
+    return users as unknown as Omit<User, 'password'>[];
   }
 
-  async listStudents() {
-    return this.prisma.user.findMany({
+  async listTutors(): Promise<Omit<User, 'password'>[]> {
+    const users = await this.prisma.user.findMany({
+      where: { role: Role.TUTOR },
+      select: this.userSelect,
+    });
+    return users as unknown as Omit<User, 'password'>[];
+  }
+
+  async listStudents(): Promise<Omit<User, 'password'>[]> {
+    const users = await this.prisma.user.findMany({
       where: { role: Role.STUDENT },
       select: this.userSelect,
     });
+    return users as unknown as Omit<User, 'password'>[];
   }
 
-  async createUser(createUserDto: CreateUserDto) {    // Check if email already exists
+  async createUser(dto: CreateUserDto): Promise<Omit<User, 'password'>> {
     const existingUser = await this.prisma.user.findUnique({
-      where: { email: createUserDto.email },
+      where: { email: dto.email },
     });
 
     if (existingUser) {
-      throw new ConflictException('E-Mail wird bereits verwendet');
+      throw new ConflictException('Email is already in use');
     }
 
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const hashedPassword = await bcrypt.hash(dto.password, 12);
 
-    // Create the user
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
-        ...createUserDto,
+        ...dto,
         password: hashedPassword,
       },
       select: this.userSelect,
     });
+
+    return user as unknown as Omit<User, 'password'>;
   }
-  async updateUser(userId: number, updateUserDto: UpdateUserDto) {
-    // Check if user exists
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+  async updateUser(
+    userId: number,
+    dto: UpdateUserDto,
+  ): Promise<Omit<User, 'password'>> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
     if (!user) {
-      throw new NotFoundException(`Benutzer mit ID ${userId} nicht gefunden`);
+      throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    // If email is being updated, check if it's already in use
-    if (updateUserDto.email && updateUserDto.email !== user.email) {
+    if (dto.email && dto.email !== user.email) {
       const existingUser = await this.prisma.user.findUnique({
-        where: { email: updateUserDto.email },
-      });      if (existingUser) {
-        throw new ConflictException('E-Mail wird bereits verwendet');
+        where: { email: dto.email },
+      });
+
+      if (existingUser) {
+        throw new ConflictException('Email is already in use');
       }
     }
 
-    // If password is provided, hash it
-    const data = { ...updateUserDto };
+    const data: UpdateUserDto = { ...dto };
     if (data.password) {
-      data.password = await bcrypt.hash(data.password, 10);
+      data.password = await bcrypt.hash(data.password, 12);
     }
 
-    // Update the user
-    return this.prisma.user.update({
+    const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data,
       select: this.userSelect,
     });
+
+    return updatedUser as unknown as Omit<User, 'password'>;
   }
-  async deleteUser(userId: number) {
-    // Check if user exists
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+  async deleteUser(userId: number): Promise<Omit<User, 'password'>> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
     if (!user) {
-      throw new NotFoundException(`Benutzer mit ID ${userId} nicht gefunden`);
-    }// Prevent deletion of teacher accounts for safety
-    if (user.role === Role.TEACHER) {
-      throw new BadRequestException('Dozenten-Konten können nicht gelöscht werden');
+      throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    // Delete the user
-    return this.prisma.user.delete({
+    if (user.role === Role.TEACHER) {
+      throw new ForbiddenException('Teacher accounts cannot be deleted');
+    }
+
+    const deletedUser = await this.prisma.user.delete({
       where: { id: userId },
       select: this.userSelect,
     });
+
+    return deletedUser as unknown as Omit<User, 'password'>;
   }
-  async blockUser(userId: number) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+  async blockUser(userId: number): Promise<Omit<User, 'password'>> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
     if (!user) {
-      throw new NotFoundException(`Benutzer mit ID ${userId} nicht gefunden`);
+      throw new NotFoundException(`User with ID ${userId} not found`);
     }
-    
-    return this.prisma.user.update({
+
+    if (user.role === Role.TEACHER) {
+      throw new ForbiddenException('Teacher accounts cannot be blocked');
+    }
+
+    const blockedUser = await this.prisma.user.update({
       where: { id: userId },
       data: { isBlocked: true },
       select: this.userSelect,
     });
+
+    return blockedUser as unknown as Omit<User, 'password'>;
   }
-  async unblockUser(userId: number) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+  async unblockUser(userId: number): Promise<Omit<User, 'password'>> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
     if (!user) {
-      throw new NotFoundException(`Benutzer mit ID ${userId} nicht gefunden`);
+      throw new NotFoundException(`User with ID ${userId} not found`);
     }
-    
-    return this.prisma.user.update({
+
+    const unblockedUser = await this.prisma.user.update({
       where: { id: userId },
       data: { isBlocked: false },
       select: this.userSelect,
     });
+
+    return unblockedUser as unknown as Omit<User, 'password'>;
   }
 }

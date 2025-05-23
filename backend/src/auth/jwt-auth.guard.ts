@@ -1,5 +1,8 @@
-
-import { Injectable, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -15,15 +18,35 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const can = await super.canActivate(context);
     if (!can) return false;
+
     const req = context.switchToHttp().getRequest();
     const userId = req.user?.sub;
-    if (!userId) return false;
-    // Prüfe, ob User gesperrt ist
-    const prisma = this.prisma || new (require('../prisma/prisma.service').PrismaService)();
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (user?.isBlocked) {
-      throw new UnauthorizedException('Account ist gesperrt. Bitte wende dich an den Support.');
+
+    if (!userId || typeof userId !== 'number') {
+      throw new UnauthorizedException('Invalid authorization token');
     }
-    return true;
+
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { isBlocked: true },
+      });
+
+      if (!user) {
+        console.error(`User with ID ${userId} not found in database`);
+        throw new UnauthorizedException('User not found');
+      }
+
+      if (user.isBlocked) {
+        throw new UnauthorizedException(
+          'Account is blocked. Please contact support.',
+        );
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error in JWT Auth Guard:', error);
+      throw error;
+    }
   }
 }

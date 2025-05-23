@@ -1,0 +1,50 @@
+﻿<div class="container">
+  <div class="header">
+    <h1>Übungsverwaltung</h1>
+    <button mat-raised-button color="primary" (click)="openCreateDialog()">
+      <mat-icon>add</mat-icon>
+      Neue Übung erstellen
+    </button>
+  </div>
+
+  <div class="exercises-list">
+    <mat-card *ngFor="let exercise of exercises" class="exercise-card">
+      <mat-card-header>
+        <mat-card-title>{{ exercise.title }}</mat-card-title>
+        <mat-card-subtitle>
+          Autor: {{ exercise.author.name }} | 
+          Datenbank: {{ exercise.database.name }}
+        </mat-card-subtitle>
+      </mat-card-header>
+      
+      <mat-card-content>
+        <p>{{ exercise.description }}</p>
+      </mat-card-content>
+
+      <mat-card-actions align="end">
+        <button mat-icon-button color="primary" (click)="openViewDialog(exercise)">
+          <mat-icon>visibility</mat-icon>
+        </button>
+        
+        <button mat-icon-button color="accent" 
+                *ngIf="canEdit(exercise)"
+                (click)="openEditDialog(exercise)">
+          <mat-icon>edit</mat-icon>
+        </button>
+        
+        <button mat-icon-button color="warn" 
+                *ngIf="canEdit(exercise)"
+                (click)="deleteExercise(exercise)">
+          <mat-icon>delete</mat-icon>
+        </button>
+      </mat-card-actions>
+    </mat-card>
+
+    <!-- No exercises message -->
+    <div *ngIf="exercises.length === 0" class="no-exercises">
+      <mat-icon>assignment</mat-icon>
+      <h2>Keine Übungen verfügbar</h2>
+      <p>Erstellen Sie eine neue Übung, um loszulegen.</p>
+    </div>
+  </div>
+</div>
