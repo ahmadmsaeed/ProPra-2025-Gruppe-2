@@ -219,7 +219,7 @@ export class DockerContainerService {
     );
 
     // Wait a bit for the container to initialize
-    await new Promise((resolve) => setTimeout(resolve, 5000));
+    await new Promise((resolve) => setTimeout(resolve, 10000));
 
     // Wait for PostgreSQL to be ready
     await this.waitForPostgres(port);

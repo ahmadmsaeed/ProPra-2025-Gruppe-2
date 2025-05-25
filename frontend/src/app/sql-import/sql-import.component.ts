@@ -21,6 +21,11 @@ import { EditDatabaseDialogComponent } from '../dialogs/edit-database-dialog.com
 import { ErrorDialogComponent } from '../dialogs/error-dialog.component';
 import { SuccessDialogComponent } from '../success-dialog/success-dialog.component';
 
+interface SqlQueryResult {
+  results?: any[];
+  message?: string;
+}
+
 interface Database {
   id: number;
   name: string;
@@ -64,6 +69,7 @@ export class SqlImportComponent implements OnInit {
   sqlQuery = '';
   queryResult: any[] = [];
   resultColumns: string[] = [];
+  queryMessage: string = '';
   selectedFile: File | null = null;
   uploadProgress = 0;
   databaseName: string = '';
@@ -223,15 +229,13 @@ export class SqlImportComponent implements OnInit {
     this.cdr.markForCheck();
 
     this.sqlImportService.executeQuery(this.selectedDatabaseId, this.sqlQuery).subscribe({
-      next: (result) => {
+      next: (result: SqlQueryResult) => {
         if (result.results && Array.isArray(result.results) && result.results.length > 0) {
-          this.queryResult = result.results;
-          this.resultColumns = Object.keys(result.results[0] || {});
-          // Show success message for SELECT queries
           if (this.sqlQuery.trim().toUpperCase().startsWith('SELECT')) {
-            this.showMessage(`Abfrage erfolgreich ausgeführt - ${result.results.length} Ergebnisse gefunden`);
+            this.queryResult = result.results;
+            this.resultColumns = Object.keys(result.results[0] || {});
+            this.queryMessage = `Abfrage erfolgreich ausgeführt - ${result.results.length} Ergebnisse gefunden.`;
           } else {
-            // Show success dialog for non-SELECT queries
             this.dialog.open(SuccessDialogComponent, {
               width: '400px',
               data: {

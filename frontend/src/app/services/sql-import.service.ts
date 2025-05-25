@@ -260,19 +260,8 @@ export class SqlImportService {
   /**
    * Execute SQL query on a database
    */
-  executeQuery(databaseId: number, query: string): Observable<any> {
-    const cacheKey = `${databaseId}:${query}`;
-    if (this.queryCache.has(cacheKey)) {
-      return of(this.queryCache.get(cacheKey));
-    }
-
-    return this.http.post<any>(`${this.apiUrl}/databases/${databaseId}/execute`, { query }).pipe(
-      tap(result => {
-        // Cache successful query results
-        this.queryCache.set(cacheKey, result);
-      }),
-      catchError(error => this.handleError(error, 'Failed to execute query'))
-    );
+  executeQuery(databaseId: number, query: string) {
+    return this.http.post('/sql-import/query', { databaseId, query });
   }
 
   /**

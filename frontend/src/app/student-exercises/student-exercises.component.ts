@@ -141,6 +141,12 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
 
   private currentSessionId: string | null = null;
 
+  isInitializingContainer: boolean = false; // <--- Diese Zeile hinzufügen
+
+  // Query result state
+  queryError: string | null = null;
+  queryMessage: string = '';
+
   constructor(
     private exerciseService: ExerciseService,
     private submissionService: SubmissionService,
@@ -272,7 +278,8 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
 
   private startExerciseSession(exerciseId: number): void {
     this.updateState({ isLoading: true, hasError: false, errorMessage: null });
-    
+    this.isInitializingContainer = true;
+
     this.exerciseSessionService.startSession(exerciseId)
       .pipe(
         takeUntil(this.destroy$),
@@ -286,9 +293,25 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
           localStorage.setItem('sql_learning_exercise_session', session.sessionId);
           this.showMessage(session.message, 'info-snackbar');
           this.cdr.markForCheck();
+
+          if (this.selectedExercise) {
+            setTimeout(() => {
+              this.loadDatabaseSchema(this.selectedExercise!.databaseSchemaId);
+
+              setTimeout(() => {
+                if (this.databaseTables.length > 0) {
+                  this.viewTableData(this.databaseTables[0].tableName);
+                }
+                this.isInitializingContainer = false; // Initialisierung vorbei
+              }, 1000);
+            }, 10000);
+          } else {
+            this.isInitializingContainer = false;
+          }
         },
         error: (error: HttpErrorResponse) => {
           this.handleError(error, 'Error starting exercise session');
+          this.isInitializingContainer = false;
         }
       });
   }
@@ -422,10 +445,8 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
 
   viewTableData(tableName: string): void {
     if (!this.selectedExercise) return;
-    
+
     this.selectedTable = tableName;
-    
-    // Check cache first
     const cacheKey = `${this.selectedExercise.databaseSchemaId}-${tableName}`;
     if (this.tableDataCache.has(cacheKey)) {
       const cachedData = this.tableDataCache.get(cacheKey);
@@ -435,40 +456,45 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
       this.cdr.markForCheck();
       return;
     }
-    
+
     this.updateState({ isLoadingTableData: true });
-    
+
     const query = `SELECT * FROM ${tableName}`;
-    this.sqlImportService.executeQuery(this.selectedExercise.databaseSchemaId, query)
+    if (!this.currentSessionId) {
+      this.queryError = 'Keine Session ausgewählt.';
+      return;
+    }
+    this.exerciseSessionService.executeQuery(this.currentSessionId, query)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
           this.updateState({ isLoadingTableData: false });
         }),
         catchError((error: HttpErrorResponse) => {
-          this.handleError(error, 'Error loading table data');
-          return of([]);
+          // Fehler beim Initialisieren freundlich behandeln
+          if (this.isInitializingContainer) {
+            // Kein Fehler anzeigen, sondern Info
+            this.queryError = null;
+            this.showMessage('Container wird initialisiert... Bitte warten.', 'info-snackbar');
+            this.tableData = [];
+            this.tableColumns = [];
+            this.cdr.markForCheck();
+            return of([]);
+          } else {
+            this.handleError(error, 'Error loading table data');
+            return of([]);
+          }
         })
       )
       .subscribe({
         next: (result: any) => {
-          if (Array.isArray(result?.results) && result.results.length > 0) {
-            this.tableData = result.results;
-            this.tableColumns = Object.keys(result.results[0]);
-            // Cache the result
-            this.tableDataCache.set(cacheKey, result.results);
+          if (Array.isArray(result)) {
+            this.tableData = result;
+            this.tableColumns = result.length > 0 ? Object.keys(result[0]) : [];
           } else {
             this.tableData = [];
             this.tableColumns = [];
           }
-          
-          // Find the selected table in our database tables to show its seed data
-          const selectedTableData = this.databaseTables.find(t => t.tableName === tableName);
-          if (selectedTableData) {
-            // Find the seed data for this table
-            this.tableSeedData = this.findSeedDataForTable(tableName);
-          }
-          
           this.cdr.markForCheck();
         }
       });
@@ -544,7 +570,7 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
   }
 
   submitSolution(): void {
-    if (!this.selectedExercise || !this.userQuery) return;
+    if (!this.selectedExercise || !this.userQuery || !this.currentSessionId) return;
 
     this.updateState({ 
       isExecuting: true, 
@@ -552,9 +578,9 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
       errorMessage: null
     });
     this.hasExecutedQuery = true;
-    
-    // First, try executing the query to make sure it's valid
-    this.sqlImportService.executeQuery(this.selectedExercise.databaseSchemaId, this.userQuery)
+
+    // Korrekt: Query über die Session ausführen!
+    this.exerciseSessionService.executeQuery(this.currentSessionId, this.userQuery)
       .pipe(
         takeUntil(this.destroy$),
         catchError((error: HttpErrorResponse) => {
@@ -568,8 +594,7 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
           if (Array.isArray(result)) {
             this.queryResults = result;
             this.resultColumns = result.length > 0 ? Object.keys(result[0]) : [];
-            
-            // Now send the submission
+            // Jetzt die Lösung einreichen
             this.sendSubmission();
           } else {
             this.queryResults = [];
@@ -708,5 +733,27 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
   
   private findSeedDataForTable(tableName: string): string[] {
     return this.tableSeedDataMap[tableName] || [];
+  }
+
+  reloadTableData(): void {
+    if (!this.currentSessionId || !this.selectedTable) {
+      this.queryError = 'Keine Tabelle oder Session ausgewählt.';
+      return;
+    }
+    const query = `SELECT * FROM ${this.selectedTable}`;
+    this.exerciseSessionService.executeQuery(this.currentSessionId, query)
+      .subscribe({
+        next: (result: any) => {
+          this.tableData = Array.isArray(result) ? result : [];
+          this.tableColumns = this.tableData.length > 0 ? Object.keys(this.tableData[0]) : [];
+          this.queryMessage = 'Tabellendaten erfolgreich geladen.';
+          this.queryError = null; // <--- Fehler zurücksetzen!
+          this.cdr.detectChanges();
+        },
+        error: (error: Error) => {
+          this.queryError = error.message;
+          this.cdr.detectChanges();
+        }
+      });
   }
 }
