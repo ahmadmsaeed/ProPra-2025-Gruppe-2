@@ -610,7 +610,7 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
   private sendSubmission(): void {
     if (!this.selectedExercise) return;
     
-    this.submissionService.submitSolution(this.selectedExercise.id, this.userQuery)
+    this.submissionService.submitSolution(this.selectedExercise.id, this.userQuery, this.currentSessionId!)
       .pipe(
         takeUntil(this.destroy$),
         finalize(() => {
@@ -631,6 +631,18 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
             
             // Optional: Add confetti or animation for correct solutions
             // document.querySelectorAll('.submission-feedback.correct').forEach(el => el.classList.add('animate-success'));
+            
+            // Session beenden
+            this.exerciseSessionService.endSession(this.currentSessionId!)
+              .subscribe({
+                next: () => {
+                  this.showMessage('Deine Session wurde beendet.', 'info-snackbar');
+                  this.currentSessionId = null;
+                },
+                error: (error: HttpErrorResponse) => {
+                  this.showMessage('Fehler beim Beenden der Session: ' + error.message, 'error-snackbar');
+                }
+              });
           } else {
             // Show error message with red color
             this.showMessage('Deine Lösung ist leider nicht korrekt. Versuche es nochmal!', 'warning-snackbar');

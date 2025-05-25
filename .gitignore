@@ -85,3 +85,4 @@ backend/uploaded-files/
 *.tmp
 *.temp
 backend/dist/tsconfig.build.tsbuildinfo
+backend/dist/tsconfig.build.tsbuildinfo

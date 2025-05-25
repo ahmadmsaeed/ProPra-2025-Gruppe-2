@@ -48,13 +48,14 @@ export class SubmissionsController {
   @Roles(Role.STUDENT, Role.TUTOR, Role.TEACHER)
   async submitSolution(
     @Request() req,
-    @Body() body: { exerciseId: number; query: string },
+    @Body() body: { exerciseId: number; query: string; sessionId: string },
   ) {
     const studentId = req.user.sub;
     return this.submissionsService.submitSolution(
       studentId,
       body.exerciseId,
       body.query,
+      body.sessionId,
     );
   }
 

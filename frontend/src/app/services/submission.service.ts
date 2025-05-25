@@ -76,8 +76,8 @@ export class SubmissionService {
   /**
    * Submit a solution to an exercise
    */
-  submitSolution(exerciseId: number, query: string): Observable<Submission> {
-    return this.http.post<Submission>(`${this.apiUrl}/submit`, { exerciseId, query }).pipe(
+  submitSolution(exerciseId: number, query: string, sessionId: string): Observable<Submission> {
+    return this.http.post<Submission>(`${this.apiUrl}/submit`, { exerciseId, query, sessionId }).pipe(
       tap(submission => {
         // Invalidate cache for the relevant exercise
         this.exerciseSubmissionsCache.delete(exerciseId);
@@ -152,4 +152,4 @@ export class SubmissionService {
     
     return throwError(() => new Error(errorMessage));
   }
-} 
+}

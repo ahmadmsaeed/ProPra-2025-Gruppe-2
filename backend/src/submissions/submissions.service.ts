@@ -58,7 +58,12 @@ export class SubmissionsService {
   /**
    * Submit a solution to an exercise
    */
-  async submitSolution(studentId: number, exerciseId: number, query: string) {
+  async submitSolution(
+    studentId: number,
+    exerciseId: number,
+    query: string,
+    sessionId: string, // <--- hinzugefügt
+  ) {
     // Get the exercise to validate against
     const exercise = await this.prisma.exercise.findUnique({
       where: { id: exerciseId },
@@ -72,19 +77,8 @@ export class SubmissionsService {
     }
 
     try {
-      // Start or get an existing exercise session
-      const { sessionId } =
-        await this.exerciseSessionService.startExerciseSession(
-          studentId,
-          exerciseId,
-        );
-
-      // Execute both queries in the student's container
-      // Execute student query
-      const studentResult = await this.exerciseSessionService.executeQuery(
-        sessionId,
-        query,
-      );
+      // Nutze sessionId für die Query-Ausführung!
+      await this.exerciseSessionService.executeQuery(sessionId, query);
 
       // Execute solution query
       const solutionResult = await this.exerciseSessionService.executeQuery(
@@ -93,9 +87,8 @@ export class SubmissionsService {
       );
 
       // Compare results - first convert to strings to normalize formatting
-      const studentResultStr = JSON.stringify(
-        this.normalizeResult(studentResult),
-      );
+      const studentResult = await this.exerciseSessionService.executeQuery(sessionId, query);
+      const studentResultStr = JSON.stringify(this.normalizeResult(studentResult));
       const solutionResultStr = JSON.stringify(
         this.normalizeResult(solutionResult),
       );
