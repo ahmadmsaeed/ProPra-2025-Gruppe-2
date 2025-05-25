@@ -30,7 +30,17 @@ export class DockerContainerService {
   constructor(
     @Inject(forwardRef(() => PrismaService))
     private readonly prisma: PrismaService,
-  ) {}
+  ) {
+    // Periodically check and stop containers older than 7 days
+    setInterval(() => {
+      const now = Date.now();
+      for (const [sessionId, container] of this.containers.entries()) {
+        if (now - container.createdAt.getTime() > 7 * 24 * 60 * 60 * 1000) {
+          this.stopAndRemoveContainer(sessionId);
+        }
+      }
+    }, 12 * 60 * 60 * 1000); // Check every 12 hours
+  }
 
   /**
    * Create a new PostgreSQL container for a specific student and exercise
@@ -340,5 +350,28 @@ export class DockerContainerService {
         }
       });
     });
+  }
+
+  /**
+   * Stop and remove a container
+   */
+  private async stopAndRemoveContainer(sessionId: string): Promise<void> {
+    const container = this.containers.get(sessionId);
+
+    if (container) {
+      try {
+        if (container.containerId) {
+          await this.executeCommand('docker', ['stop', container.containerId]);
+          await this.executeCommand('docker', ['rm', container.containerId]);
+        }
+      } catch (error) {
+        this.logger.error(
+          `Failed to stop and remove container ${sessionId}: ${error.message}`,
+        );
+      } finally {
+        this.containers.delete(sessionId);
+        this.usedPorts.delete(container.port);
+      }
+    }
   }
 }
