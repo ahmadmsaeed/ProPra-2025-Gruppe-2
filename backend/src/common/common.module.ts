@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ErrorService } from './services/error.service';
 import { SqlProcessorService } from './services/sql-processor.service';
 import { MySqlConverterService } from './services/mysql-converter.service';
@@ -9,6 +9,7 @@ import { DatabaseAuditService } from './services/database-audit.service';
 import { DatabaseValidatorService } from './services/database-validator.service';
 import { DatabaseOwnershipService } from './services/database-ownership.service';
 import { DatabaseExportService } from './services/database-export.service';
+import { LlmFeedbackService } from './services/llm-feedback.service';
 import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
@@ -24,6 +25,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     DatabaseValidatorService,
     DatabaseOwnershipService,
     DatabaseExportService,
+    LlmFeedbackService,
   ],
   exports: [
     ErrorService,
@@ -36,6 +38,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     DatabaseValidatorService,
     DatabaseOwnershipService,
     DatabaseExportService,
+    LlmFeedbackService,
   ],
 })
 export class CommonModule {}

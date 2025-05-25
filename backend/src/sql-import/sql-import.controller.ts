@@ -149,4 +149,32 @@ export class SqlImportController {
   ) {
     return this.sqlImportService.executeQuery(databaseId, query);
   }
+
+  // Test endpoint for temporary containers
+  @Post('test-container/:studentId/:databaseId')
+  @Roles(Role.TEACHER, Role.TUTOR) // Only for testing
+  async testTemporaryContainer(
+    @Param('studentId') studentId: string,
+    @Param('databaseId') databaseId: string,
+    @Body('query') query: string,
+  ) {
+    try {
+      const result = await this.sqlImportService.executeQueryForStudent(
+        parseInt(databaseId),
+        query,
+        parseInt(studentId),
+      );
+      return {
+        success: true,
+        result,
+        message: 'Query executed successfully on temporary container',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: 'Failed to execute query on temporary container',
+      };
+    }
+  }
 }

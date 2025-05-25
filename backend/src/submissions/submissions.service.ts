@@ -71,13 +71,14 @@ export class SubmissionsService {
 
     // Execute both queries and compare results
     try {
-      // Execute student query
-      const studentResult = await this.sqlImportService.executeQuery(
+      // Execute student query on temporary container
+      const studentResult = await this.sqlImportService.executeQueryForStudent(
         exercise.databaseSchemaId,
         query,
+        studentId,
       );
 
-      // Execute solution query
+      // Execute solution query on original database (for reference)
       const solutionResult = await this.sqlImportService.executeQuery(
         exercise.databaseSchemaId,
         exercise.solutionQuery,

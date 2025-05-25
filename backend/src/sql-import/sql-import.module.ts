@@ -6,6 +6,8 @@ import { CommonModule } from '../common/common.module';
 import { DatabaseImportService } from './database-import.service';
 import { DatabaseExecutionService } from './database-execution.service';
 import { DatabaseManagementService } from './database-management.service';
+import { DatabaseContainerService } from './database-container.service';
+import { ContainerCleanupService } from '../common/services/container-cleanup.service';
 
 @Module({
   imports: [PrismaModule, CommonModule],
@@ -17,6 +19,8 @@ import { DatabaseManagementService } from './database-management.service';
       useClass: DatabaseImportService
     },
     DatabaseExecutionService,
+    DatabaseContainerService,
+    ContainerCleanupService,
     {
       provide: DatabaseManagementService,
       useClass: DatabaseManagementService

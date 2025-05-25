@@ -36,5 +36,10 @@
   "homepage": "https://github.com/ProPra-2025-Gruppe-2/sql-learning-platform#readme",
   "devDependencies": {
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "@nestjs/config": "^4.0.2",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1"
   }
-} 
+}

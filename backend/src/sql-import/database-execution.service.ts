@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ErrorService } from '../common/services/error.service';
 import { SqlValidatorService } from '../common/services/sql-validator.service';
 import { SqlProcessorService } from '../common/services/sql-processor.service';
+import { DatabaseContainerService } from './database-container.service';
 
 @Injectable()
 export class DatabaseExecutionService {
@@ -15,12 +16,83 @@ export class DatabaseExecutionService {
     private errorService: ErrorService,
     private sqlValidator: SqlValidatorService,
     private sqlProcessor: SqlProcessorService,
+    private containerService: DatabaseContainerService,
   ) {}
 
   /**
    * Execute a database query against a specific database
+   * For administrators - executes directly on original database
    */
   async executeQuery(databaseId: number, query: string): Promise<any> {
+    return this.executeQueryDirect(databaseId, query);
+  }
+
+  /**
+   * Execute a database query for a student using a temporary container
+   */
+  async executeQueryForStudent(
+    databaseId: number,
+    query: string,
+    studentId: number,
+  ): Promise<any> {
+    const dbEntry = await this.prisma.database.findUnique({
+      where: { id: databaseId },
+    });
+    if (!dbEntry) {
+      throw new NotFoundException(`Database with ID ${databaseId} not found.`);
+    }
+
+    // Validate query for safety
+    const validationResult = this.sqlValidator.validateSqlSafety(query);
+    if (!validationResult.valid) {
+      throw new BadRequestException(
+        `Query execution failed: ${validationResult.reason}`,
+      );
+    }
+
+    try {
+      // Create or get temporary container for this student and database
+      const containerInfo = await this.containerService.createTemporaryContainer(
+        studentId,
+        databaseId,
+      );
+
+      // Execute query on the temporary container
+      return await this.containerService.executeQueryOnContainer(
+        containerInfo,
+        query,
+      );
+    } catch (error) {
+      console.error('Error executing query on temporary container:', error);
+      const errorMsg = this.errorService.handlePostgresError(error);
+
+      // Check if this is a "relation does not exist" error and provide a more helpful message
+      if (
+        error.message &&
+        error.message.includes('relation') &&
+        error.message.includes('does not exist')
+      ) {
+        // Extract the table name from the error message if possible
+        const tableNameMatch = error.message.match(
+          /relation "([^"]+)" does not exist/,
+        );
+        const tableName = tableNameMatch ? tableNameMatch[1] : 'unknown';
+
+        throw this.errorService.createBadRequestException(
+          `Die Tabelle "${tableName}" existiert nicht. Bitte überprüfen Sie das Datenbankschema und stellen Sie sicher, dass die Tabelle erstellt wurde.`,
+        );
+      }
+
+      throw this.errorService.createBadRequestException(
+        `Query execution failed: ${errorMsg}`,
+      );
+    }
+  }
+
+  /**
+   * Execute a database query directly on the original database (for admins)
+   */
+  private async executeQueryDirect(databaseId: number, query: string): Promise<any> {
     const dbEntry = await this.prisma.database.findUnique({
       where: { id: databaseId },
     });

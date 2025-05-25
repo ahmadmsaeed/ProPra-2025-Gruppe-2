@@ -34,6 +34,17 @@ export class SqlImportService {
   }
 
   /**
+   * Execute a database query for a student (uses temporary container)
+   */
+  async executeQueryForStudent(
+    databaseId: number,
+    query: string,
+    studentId: number,
+  ): Promise<any> {
+    return this.databaseExecution.executeQueryForStudent(databaseId, query, studentId);
+  }
+
+  /**
    * Get all available databases
    */
   async getAllDatabases() {
