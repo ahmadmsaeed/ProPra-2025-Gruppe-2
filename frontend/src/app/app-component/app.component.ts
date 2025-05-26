@@ -7,6 +7,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { BackendStatusComponent } from '../backend-status/backend-status.component';
 import { AuthService } from '../services/auth.service';
+import { ThemeService } from '../services/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -24,9 +25,16 @@ import { AuthService } from '../services/auth.service';
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent {
-  constructor(public authService: AuthService) {}
+  constructor(
+    public authService: AuthService,
+    private themeService: ThemeService
+  ) {}
 
   onLogout() {
     this.authService.logout();
+  }
+
+  toggleTheme() {
+    this.themeService.toggleTheme();
   }
 }

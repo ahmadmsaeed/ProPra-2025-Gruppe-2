@@ -3,17 +3,48 @@
   margin: 2em auto;
   padding: 2rem;
   border-radius: 8px;
+  background-color: var(--card-background);
 }
 
 .form-title {
   text-align: center;
   margin-bottom: 1.5rem;
-  color: #333;
+  color: var(--text-color);
 }
 
 .form-field {
   width: 100%;
   margin-bottom: 1em;
+}
+
+::ng-deep .form-field {
+  .mat-mdc-form-field-label {
+    color: var(--text-secondary-color) !important;
+  }
+
+  .mdc-text-field--filled:not(.mdc-text-field--disabled) {
+    background-color: var(--surface-color) !important;
+  }
+
+  .mdc-text-field:not(.mdc-text-field--disabled) .mdc-text-field__input {
+    color: var(--text-color) !important;
+  }
+
+  .mdc-text-field:not(.mdc-text-field--disabled) .mdc-text-field__input::placeholder {
+    color: var(--text-secondary-color) !important;
+  }
+
+  .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__leading,
+  .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__notch,
+  .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__trailing {
+    border-color: var(--border-color) !important;
+  }
+
+  .mdc-text-field--outlined:not(.mdc-text-field--disabled):not(.mdc-text-field--focused):hover .mdc-notched-outline__leading,
+  .mdc-text-field--outlined:not(.mdc-text-field--disabled):not(.mdc-text-field--focused):hover .mdc-notched-outline__notch,
+  .mdc-text-field--outlined:not(.mdc-text-field--disabled):not(.mdc-text-field--focused):hover .mdc-notched-outline__trailing {
+    border-color: var(--primary-color) !important;
+  }
 }
 
 .form-actions {
@@ -22,7 +53,7 @@
 }
 
 .error-message {
-  color: #c62828;
+  color: var(--error-color);
   text-align: center;
   margin-top: 1em;
   font-size: 0.9rem;
@@ -37,4 +68,17 @@
 
 .error-message {
   animation: shake 0.6s ease-in-out;
+}
+
+// Dark theme specific overrides
+:host-context(.dark-theme) {
+  ::ng-deep .form-field {
+    .mat-mdc-form-field-label {
+      color: rgba(255, 255, 255, 0.6) !important;
+    }
+
+    .mdc-text-field:not(.mdc-text-field--disabled) .mdc-text-field__input::placeholder {
+      color: rgba(255, 255, 255, 0.5) !important;
+    }
+  }
 }

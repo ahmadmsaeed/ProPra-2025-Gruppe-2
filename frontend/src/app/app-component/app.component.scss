@@ -118,3 +118,53 @@
     padding-right: 1rem;
   }
 }
+
+.brand-link {
+  text-decoration: none;
+  color: white;
+  display: flex;
+  align-items: center;
+  font-size: 1.1rem;
+  padding: 0 8px;
+
+  mat-icon {
+    margin-right: 8px;
+  }
+}
+
+.nav-spacer {
+  flex: 1 1 auto;
+}
+
+.theme-toggle {
+  margin: 0 8px;
+  color: white;
+  opacity: 0.9;
+  transition: all 0.3s ease;
+
+  &:hover {
+    opacity: 1;
+    transform: rotate(30deg);
+  }
+}
+
+.user-menu {
+  color: white;
+  opacity: 0.9;
+  
+  &:hover {
+    opacity: 1;
+  }
+
+  mat-icon {
+    margin: 0 4px;
+  }
+}
+
+.main-container {
+  padding-top: 64px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-left: 16px;
+  padding-right: 16px;
+}

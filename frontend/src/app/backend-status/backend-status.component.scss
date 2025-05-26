@@ -1,11 +1,11 @@
 .up .status-text {
-  color: #2ecc40; /* grün */
+  color: var(--success-color);
   font-weight: bold;
 }
 .down .status-text {
-  color: #ff4136; /* rot */
+  color: var(--error-color);
   font-weight: bold;
 }
 .unknown .status-text {
-  color: #888;
+  color: var(--text-secondary-color);
 }
