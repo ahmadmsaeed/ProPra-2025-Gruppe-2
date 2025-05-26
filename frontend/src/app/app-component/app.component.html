@@ -10,9 +10,13 @@
     <div class="nav-links">
       <!-- Student Links -->
       <ng-container *ngIf="authService.isLoggedIn() && authService.isStudent()">
-        <a mat-button routerLink="/exercises">
+        <a mat-button routerLink="/student/dashboard"> <!-- Geändert von /exercises -->
+          <mat-icon>dashboard</mat-icon> <!-- Optional: Icon ändern -->
+          Mein Dashboard
+        </a>
+        <a mat-button routerLink="/exercises"> <!-- Zusätzlicher Link zur vollen Übungsliste -->
           <mat-icon>code</mat-icon>
-          SQL-Übungen
+          Alle SQL-Übungen
         </a>
       </ng-container>
 

@@ -29,7 +29,15 @@ export class LoginComponent {
     this.error = '';
     this.auth.login(this.form).subscribe({
       next: () => {
-        this.router.navigate(['/profile']);
+        if (this.auth.isStudent()) {
+          this.router.navigate(['/student/dashboard']); // Zum neuen Student-Dashboard
+        } else if (this.auth.isTeacher() || this.auth.isTutor()) {
+          // Bestehende Logik für Dozenten/Tutoren, z.B. zum Teacher-Dashboard
+          this.router.navigate(['/teacher/dashboard']);
+        }
+         else {
+          this.router.navigate(['/profile']); // Fallback
+        }
       },
       error: (err) => {
         this.error = err.error?.message || 'Login fehlgeschlagen';

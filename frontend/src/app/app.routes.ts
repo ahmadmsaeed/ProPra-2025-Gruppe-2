@@ -10,6 +10,7 @@ import { LandingPageComponent } from './landing-page/landing-page.component';
 import { ExerciseManagementComponent } from './exercise-management/exercise-management.component';
 import { StudentExercisesComponent } from './student-exercises/student-exercises.component';
 import { SqlImportComponent } from './sql-import/sql-import.component';
+import { StudentDashboardComponent } from './student-dashboard/student-dashboard.component';
 
 export const routes: Routes = [
   { path: '', component: LandingPageComponent },
@@ -17,6 +18,7 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },
   { path: 'admin/dashboard', component: AdminDashboardComponent, canActivate: [authGuard] },
+  { path: 'student/dashboard', component: StudentDashboardComponent, canActivate: [authGuard] },
   
   // Routes for SQL learning platform
   { path: 'exercises', component: StudentExercisesComponent, canActivate: [authGuard] },
