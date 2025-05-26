@@ -48,6 +48,12 @@ The platform manages both system databases (for user accounts, exercises, etc.) 
 4. Seed data is executed to populate tables
 5. Results are stored for future reference
 
+### Ressource Management
+1. Only 100 Docker container can run simultanious
+2. Docker Container gets deleted after solving an assignment
+3. Every Docker Container older than 7 days gets deleted
+4. After Logout the assignment container is stopped
+
 ## API Endpoints
 
 The SQL Import API provides the following endpoints:

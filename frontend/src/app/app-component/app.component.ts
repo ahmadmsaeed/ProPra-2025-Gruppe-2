@@ -42,26 +42,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   logout(): void {
-    // End any active exercise session before logging out
-    const sessionId = localStorage.getItem('sql_learning_exercise_session');
-    if (sessionId) {
-      this.exerciseSessionService.endSession(sessionId)
-        .pipe(takeUntil(this.destroy$))
-        .subscribe({
-          next: () => {
-            // Clear session data and logout
-            localStorage.removeItem('sql_learning_exercise_session');
-            this.authService.logout();
-          },
-          error: (error: Error) => {
-            console.error('Error ending exercise session:', error);
-            // Still logout even if session cleanup fails
-            this.authService.logout();
-          }
-        });
-    } else {
-      // No active session, just logout
-      this.authService.logout();
-    }
+    // Nur noch zentrale Stop-All-Funktion nutzen
+    this.authService.logout();
   }
 }

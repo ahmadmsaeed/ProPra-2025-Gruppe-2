@@ -62,7 +62,7 @@ export class DockerContainerService {
     // Create container record
     const container: DockerContainer = {
       id: sessionId,
-      studentId,
+      studentId,      // <-- Hier wird die User-ID korrekt gesetzt!
       exerciseId,
       databaseId,
       containerId: '', // Will be set when container starts
@@ -110,15 +110,14 @@ export class DockerContainerService {
   /**
    * Get active container for a student-exercise pair if exists
    */
-  getActiveContainerForStudent(
+  getContainerForStudent(
     studentId: number,
     exerciseId: number,
   ): DockerContainer | undefined {
     for (const container of this.containers.values()) {
       if (
         container.studentId === studentId &&
-        container.exerciseId === exerciseId &&
-        container.status === 'running'
+        container.exerciseId === exerciseId
       ) {
         return container;
       }
@@ -139,12 +138,9 @@ export class DockerContainerService {
     try {
       if (container.containerId) {
         await this.executeCommand('docker', ['stop', container.containerId]);
-        await this.executeCommand('docker', ['rm', container.containerId]);
       }
-
-      this.containers.delete(sessionId);
-      this.usedPorts.delete(container.port);
-
+      container.status = 'stopped'; // <-- Status setzen!
+      this.containers.set(sessionId, container); // <-- Map aktualisieren!
       return true;
     } catch (error) {
       this.logger.error(
@@ -229,7 +225,7 @@ export class DockerContainerService {
     );
 
     // Wait a bit for the container to initialize
-    await new Promise((resolve) => setTimeout(resolve, 10000));
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     // Wait for PostgreSQL to be ready
     await this.waitForPostgres(port);
@@ -355,7 +351,7 @@ export class DockerContainerService {
   /**
    * Stop and remove a container
    */
-  private async stopAndRemoveContainer(sessionId: string): Promise<void> {
+  public async stopAndRemoveContainer(sessionId: string): Promise<void> {
     const container = this.containers.get(sessionId);
 
     if (container) {
@@ -373,5 +369,65 @@ export class DockerContainerService {
         this.usedPorts.delete(container.port);
       }
     }
+  }
+
+  /**
+   * Stop all containers for a specific user
+   */
+  async stopAllContainersForUser(userId: number) {
+    
+    for (const [sessionId, container] of this.containers.entries()) {
+      
+      if (container.studentId === userId && container.status === 'running') {
+        
+        await this.stopContainer(sessionId);
+      }
+    }
+  }
+
+  /**
+   * Start a stopped container
+   */
+  async startContainer(sessionId: string): Promise<boolean> {
+    const container = this.containers.get(sessionId);
+
+    
+    if (!container) {
+      
+      return false;
+    }
+    
+
+    if (container.status !== 'stopped') {
+      
+      return false;
+    }
+
+    try {
+      
+      await this.executeCommand('docker', ['start', container.containerId]);
+      container.status = 'running';
+      this.containers.set(sessionId, container); // Map aktualisieren!
+      
+
+      // Optional: Warte, bis Postgres bereit ist
+      
+      await this.waitForPostgres(container.port);
+      
+
+      return true;
+    } catch (error) {
+      
+      container.status = 'error';
+      this.containers.set(sessionId, container);
+      return false;
+    }
+  }
+
+  /**
+   * Update an existing container's information
+   */
+  public updateContainer(container: DockerContainer) {
+    this.containers.set(container.id, container);
   }
 }

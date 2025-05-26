@@ -33,47 +33,48 @@ export class ExerciseSessionService {
     sessionId: string;
     message: string;
   }> {
-    try {
-      // Check if student already has an active container for this exercise
-      const existingContainer = this.dockerService.getActiveContainerForStudent(
-        studentId,
-        exerciseId,
-      );
+    // Suche Container für diesen User und diese Übung
+    let container = this.dockerService.getContainerForStudent(studentId, exerciseId);
 
-      if (existingContainer) {
+    if (container) {
+      this.logger.log(`[startExerciseSession] Gefundener Container: ${container.id}, Status: ${container.status}`);
+      if (container.status === 'stopped') {
+        this.logger.log(`[startExerciseSession] Starte gestoppten Container: ${container.id}`);
+        // Container ist gestoppt, starte ihn neu!
+        const started = await this.dockerService.startContainer(container.id);
+        if (started) {
+          container.status = 'running';
+          this.dockerService.updateContainer(container); // <-- jetzt korrekt!
+          return {
+            sessionId: container.id,
+            message: 'Restarted existing session',
+          };
+        } else {
+          throw new Error('Could not restart existing container');
+        }
+      }
+      if (container.status === 'running') {
         return {
-          sessionId: existingContainer.id,
+          sessionId: container.id,
           message: 'Continuing existing session',
         };
       }
-
-      // Get the exercise details
-      const exercise = await this.prisma.exercise.findUnique({
-        where: { id: exerciseId },
-        include: {
-          database: true,
-        },
-      });
-
-      if (!exercise) {
-        throw new NotFoundException(`Exercise with ID ${exerciseId} not found`);
-      }
-
-      // Create a new Docker container for this student and exercise
-      const container = await this.dockerService.createContainer(
-        studentId,
-        exerciseId,
-        exercise.database.id,
-      );
-
-      return {
-        sessionId: container.id,
-        message: 'New exercise session created',
-      };
-    } catch (error) {
-      this.logger.error(`Failed to start exercise session: ${error.message}`);
-      throw error;
     }
+
+    // Kein Container vorhanden: neuen anlegen
+    const exercise = await this.prisma.exercise.findUnique({ where: { id: exerciseId }, include: { database: true } });
+    if (!exercise || !exercise.database) {
+      throw new NotFoundException('Exercise or associated database not found');
+    }
+    container = await this.dockerService.createContainer(
+      studentId,
+      exerciseId,
+      exercise.database.id,
+    );
+    return {
+      sessionId: container.id,
+      message: 'Started new session',
+    };
   }
 
   /**
@@ -103,19 +104,12 @@ export class ExerciseSessionService {
     sessionId: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
-      const result = await this.dockerService.stopContainer(sessionId);
+      await this.dockerService.stopAndRemoveContainer(sessionId);
 
-      if (result) {
-        return {
-          success: true,
-          message: 'Exercise session ended successfully',
-        };
-      } else {
-        return {
-          success: false,
-          message: 'Failed to end exercise session',
-        };
-      }
+      return {
+        success: true,
+        message: 'Exercise session ended successfully',
+      };
     } catch (error) {
       this.logger.error(`Failed to end exercise session: ${error.message}`);
       throw error;

@@ -11,12 +11,17 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { ExerciseSessionService } from '../common/services/exercise-session.service';
-
+import { DockerContainerService } from '../common/services/docker-container.service';
+import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
+import { RolesGuard } from 'src/auth/roles.guard';
+import { Role } from 'src/types/models';
+import { Roles } from 'src/auth/roles.decorator';
 @Controller('exercise-sessions')
-// @UseGuards(JwtAuthGuard, RolesGuard) - Auth guards commented out until implemented
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ExerciseSessionController {
   constructor(
     private readonly exerciseSessionService: ExerciseSessionService,
+    private readonly dockerContainerService: DockerContainerService, // <--- hinzugefügt!
   ) {}
 
   /**
@@ -24,9 +29,7 @@ export class ExerciseSessionController {
    */
   @Post('start')
   async startSession(@Body() body: { exerciseId: number }, @Request() req) {
-    // For demo purposes, using a fixed studentId
-    // In production, this would come from req.user.id after authentication
-    const studentId = 1; // req.user.id;
+    const studentId = req.user.sub || req.user.id;
 
     if (!body.exerciseId) {
       throw new BadRequestException('exerciseId is required');
@@ -47,8 +50,8 @@ export class ExerciseSessionController {
     @Body() body: { query: string },
     @Request() req,
   ) {
-    // For demo purposes, using a fixed studentId
-    const studentId = 1; // req.user.id;
+    
+    const studentId = req.user.sub || req.user.id;
     const container =
       this.exerciseSessionService['dockerService'].getContainer(sessionId);
 
@@ -69,8 +72,8 @@ export class ExerciseSessionController {
    */
   @Delete(':sessionId')
   async endSession(@Param('sessionId') sessionId: string, @Request() req) {
-    // For demo purposes, using a fixed studentId
-    const studentId = 1; // req.user.id;
+
+    const studentId = req.user.sub || req.user.id;
     const container =
       this.exerciseSessionService['dockerService'].getContainer(sessionId);
 
@@ -80,5 +83,18 @@ export class ExerciseSessionController {
     }
 
     return this.exerciseSessionService.endExerciseSession(sessionId);
+  }
+
+  /**
+   * Stop all exercise sessions for the current user
+   */
+  @Post('stop-all')
+  @Roles(Role.STUDENT, Role.TUTOR, Role.TEACHER)
+  async stopAllSessionsForUser(@Request() req) {
+    console.log('Stoppe alle Container für User:', req.user);
+    if (!req.user) throw new UnauthorizedException('User not authenticated');
+    const userId = req.user.sub || req.user.id;
+    await this.dockerContainerService.stopAllContainersForUser(userId);
+    return { success: true };
   }
 }

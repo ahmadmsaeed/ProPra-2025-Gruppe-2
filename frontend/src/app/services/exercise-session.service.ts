@@ -41,4 +41,11 @@ export class ExerciseSessionService {
   endSession(sessionId: string): Observable<SessionResult> {
     return this.http.delete<SessionResult>(`${this.apiUrl}/${sessionId}`);
   }
-} 
+
+  /**
+   * Stop all exercise sessions for the user
+   */
+  stopAllSessionsForUser() {
+    return this.http.post(`${this.apiUrl}/stop-all`, {});
+  }
+}
