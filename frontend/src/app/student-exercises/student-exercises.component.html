@@ -261,7 +261,16 @@
           (click)="resetQuery()" 
           [disabled]="(state$ | async)?.isExecuting">
           <mat-icon>refresh</mat-icon>
-          Zurücksetzen
+          Query zurücksetzen
+        </button>
+
+        <button 
+          mat-raised-button 
+          color="warn" 
+          (click)="onResetDatabase()" 
+          [disabled]="(state$ | async)?.isExecuting">
+          <mat-icon>restore</mat-icon>
+          Datenbank zurücksetzen
         </button>
 
         <button mat-raised-button color="primary" (click)="reloadTableData()">
@@ -333,4 +342,4 @@
       </mat-card-content>
     </mat-card>
   </div>
-</div> 
+</div>

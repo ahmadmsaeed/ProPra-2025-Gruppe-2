@@ -32,14 +32,17 @@ export class DockerContainerService {
     private readonly prisma: PrismaService,
   ) {
     // Periodically check and stop containers older than 7 days
-    setInterval(() => {
-      const now = Date.now();
-      for (const [sessionId, container] of this.containers.entries()) {
-        if (now - container.createdAt.getTime() > 7 * 24 * 60 * 60 * 1000) {
-          this.stopAndRemoveContainer(sessionId);
+    setInterval(
+      () => {
+        const now = Date.now();
+        for (const [sessionId, container] of this.containers.entries()) {
+          if (now - container.createdAt.getTime() > 7 * 24 * 60 * 60 * 1000) {
+            this.stopAndRemoveContainer(sessionId);
+          }
         }
-      }
-    }, 12 * 60 * 60 * 1000); // Check every 12 hours
+      },
+      12 * 60 * 60 * 1000,
+    ); // Check every 12 hours
   }
 
   /**
@@ -62,7 +65,7 @@ export class DockerContainerService {
     // Create container record
     const container: DockerContainer = {
       id: sessionId,
-      studentId,      // <-- Hier wird die User-ID korrekt gesetzt!
+      studentId, // <-- Hier wird die User-ID korrekt gesetzt!
       exerciseId,
       databaseId,
       containerId: '', // Will be set when container starts
@@ -375,11 +378,8 @@ export class DockerContainerService {
    * Stop all containers for a specific user
    */
   async stopAllContainersForUser(userId: number) {
-    
     for (const [sessionId, container] of this.containers.entries()) {
-      
       if (container.studentId === userId && container.status === 'running') {
-        
         await this.stopContainer(sessionId);
       }
     }
@@ -391,33 +391,25 @@ export class DockerContainerService {
   async startContainer(sessionId: string): Promise<boolean> {
     const container = this.containers.get(sessionId);
 
-    
     if (!container) {
-      
       return false;
     }
-    
 
     if (container.status !== 'stopped') {
-      
       return false;
     }
 
     try {
-      
       await this.executeCommand('docker', ['start', container.containerId]);
       container.status = 'running';
       this.containers.set(sessionId, container); // Map aktualisieren!
-      
 
       // Optional: Warte, bis Postgres bereit ist
-      
+
       await this.waitForPostgres(container.port);
-      
 
       return true;
     } catch (error) {
-      
       container.status = 'error';
       this.containers.set(sessionId, container);
       return false;
@@ -429,5 +421,82 @@ export class DockerContainerService {
    */
   public updateContainer(container: DockerContainer) {
     this.containers.set(container.id, container);
+  }
+
+  /**
+   * Reset the database in a running container to its initial state
+   */
+  async resetContainerDatabase(sessionId: string): Promise<boolean> {
+    const container = this.containers.get(sessionId);
+
+    if (!container || container.status !== 'running') {
+      return false;
+    }
+
+    try {
+      this.logger.log(
+        `[resetContainerDatabase] Setze Datenbank für Container ${sessionId} zurück`,
+      );
+
+      // Step 1: Drop all existing tables
+      await this.dropAllTables(container);
+
+      // Step 2: Re-initialize the database with fresh schema and seed data
+      await this.initializeDatabase(container, container.databaseId);
+
+      this.logger.log(
+        `[resetContainerDatabase] Datenbank für Container ${sessionId} wurde zurückgesetzt`,
+      );
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `[resetContainerDatabase] Fehler beim Zurücksetzen: ${error.message}`,
+      );
+      return false;
+    }
+  }
+
+  /**
+   * Drop all user tables in the container database
+   */
+  private async dropAllTables(container: DockerContainer): Promise<void> {
+    try {
+      // Create a connection to the container database
+      const client = new Client({
+        host: 'localhost',
+        port: container.port,
+        user: 'postgres',
+        password: 'postgres',
+        database: 'postgres',
+      });
+
+      // Connect to the database
+      await client.connect();
+
+      try {
+        // Get all user tables (excluding system tables)
+        const getTablesQuery = `
+        SELECT tablename 
+        FROM pg_tables 
+        WHERE schemaname = 'public'
+      `;
+
+        const tablesResult = await client.query(getTablesQuery);
+
+        if (tablesResult.rows && tablesResult.rows.length > 0) {
+          // Drop each table
+          for (const row of tablesResult.rows) {
+            const dropQuery = `DROP TABLE IF EXISTS "${row.tablename}" CASCADE`;
+            await client.query(dropQuery);
+            this.logger.log(`[dropAllTables] Dropped table: ${row.tablename}`);
+          }
+        }
+      } finally {
+        await client.end();
+      }
+    } catch (error) {
+      this.logger.error(`[dropAllTables] Error dropping tables: ${error.message}`);
+      throw error;
+    }
   }
 }

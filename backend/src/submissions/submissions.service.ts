@@ -87,8 +87,13 @@ export class SubmissionsService {
       );
 
       // Compare results - first convert to strings to normalize formatting
-      const studentResult = await this.exerciseSessionService.executeQuery(sessionId, query);
-      const studentResultStr = JSON.stringify(this.normalizeResult(studentResult));
+      const studentResult = await this.exerciseSessionService.executeQuery(
+        sessionId,
+        query,
+      );
+      const studentResultStr = JSON.stringify(
+        this.normalizeResult(studentResult),
+      );
       const solutionResultStr = JSON.stringify(
         this.normalizeResult(solutionResult),
       );

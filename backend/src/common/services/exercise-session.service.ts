@@ -34,12 +34,19 @@ export class ExerciseSessionService {
     message: string;
   }> {
     // Suche Container für diesen User und diese Übung
-    let container = this.dockerService.getContainerForStudent(studentId, exerciseId);
+    let container = this.dockerService.getContainerForStudent(
+      studentId,
+      exerciseId,
+    );
 
     if (container) {
-      this.logger.log(`[startExerciseSession] Gefundener Container: ${container.id}, Status: ${container.status}`);
+      this.logger.log(
+        `[startExerciseSession] Gefundener Container: ${container.id}, Status: ${container.status}`,
+      );
       if (container.status === 'stopped') {
-        this.logger.log(`[startExerciseSession] Starte gestoppten Container: ${container.id}`);
+        this.logger.log(
+          `[startExerciseSession] Starte gestoppten Container: ${container.id}`,
+        );
         // Container ist gestoppt, starte ihn neu!
         const started = await this.dockerService.startContainer(container.id);
         if (started) {
@@ -62,7 +69,10 @@ export class ExerciseSessionService {
     }
 
     // Kein Container vorhanden: neuen anlegen
-    const exercise = await this.prisma.exercise.findUnique({ where: { id: exerciseId }, include: { database: true } });
+    const exercise = await this.prisma.exercise.findUnique({
+      where: { id: exerciseId },
+      include: { database: true },
+    });
     if (!exercise || !exercise.database) {
       throw new NotFoundException('Exercise or associated database not found');
     }

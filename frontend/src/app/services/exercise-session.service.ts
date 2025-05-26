@@ -48,4 +48,11 @@ export class ExerciseSessionService {
   stopAllSessionsForUser() {
     return this.http.post(`${this.apiUrl}/stop-all`, {});
   }
+
+  /**
+   * Reset the current exercise session
+   */
+  resetSession(sessionId: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/reset/${sessionId}`, {});
+  }
 }

@@ -50,7 +50,6 @@ export class ExerciseSessionController {
     @Body() body: { query: string },
     @Request() req,
   ) {
-    
     const studentId = req.user.sub || req.user.id;
     const container =
       this.exerciseSessionService['dockerService'].getContainer(sessionId);
@@ -72,7 +71,6 @@ export class ExerciseSessionController {
    */
   @Delete(':sessionId')
   async endSession(@Param('sessionId') sessionId: string, @Request() req) {
-
     const studentId = req.user.sub || req.user.id;
     const container =
       this.exerciseSessionService['dockerService'].getContainer(sessionId);
@@ -96,5 +94,30 @@ export class ExerciseSessionController {
     const userId = req.user.sub || req.user.id;
     await this.dockerContainerService.stopAllContainersForUser(userId);
     return { success: true };
+  }
+
+  /**
+   * Reset the database in the current exercise session
+   */
+  @Post('reset/:sessionId')
+  async resetSession(@Param('sessionId') sessionId: string, @Request() req) {
+    const studentId = req.user.sub || req.user.id;
+    const container = this.dockerContainerService.getContainer(sessionId);
+
+    // Verify this session belongs to the current student
+    if (!container || container.studentId !== studentId) {
+      throw new UnauthorizedException('You do not have access to this session');
+    }
+
+    const success = await this.dockerContainerService.resetContainerDatabase(sessionId);
+    
+    if (!success) {
+      throw new BadRequestException('Failed to reset database');
+    }
+
+    return { 
+      success: true, 
+      message: 'Database has been reset to initial state' 
+    };
   }
 }

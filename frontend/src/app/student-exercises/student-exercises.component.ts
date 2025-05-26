@@ -668,6 +668,31 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  onResetDatabase(): void {
+    if (!this.currentSessionId) {
+      this.showMessage('Keine aktive Session vorhanden', 'error-snackbar');
+      return;
+    }
+
+    // Optional: Bestätigung vom User
+    if (!confirm('Möchten Sie die Datenbank wirklich zurücksetzen? Alle Ihre Änderungen gehen verloren.')) {
+      return;
+    }
+
+    this.exerciseSessionService.resetSession(this.currentSessionId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (response) => {
+          this.showMessage('Datenbank wurde zurückgesetzt', 'success-snackbar');
+          // Optional: Tabellen neu laden
+          this.reloadTableData();
+        },
+        error: (error: HttpErrorResponse) => {
+          this.showMessage('Fehler beim Zurücksetzen: ' + error.message, 'error-snackbar');
+        }
+      });
+  }
+
   private handleError(error: HttpErrorResponse, contextMessage: string): void {
     console.error(contextMessage, error);
     

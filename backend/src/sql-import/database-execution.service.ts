@@ -366,16 +366,21 @@ export class DatabaseExecutionService {
   }> {
     // Extract and validate statements
     const statements = this.sqlProcessor.extractStatements(sqlContent);
-    
+
     // Validate each statement individually
-    const validationResults = this.sqlValidator.validateSqlStatements(sqlContent, statements);
-    const invalidStatements = validationResults.filter(result => !result.valid);
+    const validationResults = this.sqlValidator.validateSqlStatements(
+      sqlContent,
+      statements,
+    );
+    const invalidStatements = validationResults.filter(
+      (result) => !result.valid,
+    );
 
     if (invalidStatements.length > 0) {
       const errorMessage = `SQL contains potentially harmful statements: ${invalidStatements.map((s) => s.reason).join(' | ')}`;
       throw new BadRequestException(errorMessage);
     }
-    
+
     // If this is validation only, return success
     if (options.validateOnly) {
       return {
