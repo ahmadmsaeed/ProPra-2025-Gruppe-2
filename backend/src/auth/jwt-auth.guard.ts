@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthenticatedRequest } from '../types/auth.types';
 
 /**
  * Guard für JWT-geschützte Endpunkte.
@@ -19,7 +20,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     const can = await super.canActivate(context);
     if (!can) return false;
 
-    const req = context.switchToHttp().getRequest();
+    const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const userId = req.user?.sub;
 
     if (!userId || typeof userId !== 'number') {

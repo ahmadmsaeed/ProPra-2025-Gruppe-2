@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { SubmissionsService } from './submissions.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuthenticatedRequest } from '../types/auth.types';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
@@ -27,7 +28,7 @@ export class SubmissionsController {
    */
   @Get('my')
   @Roles(Role.STUDENT, Role.TUTOR, Role.TEACHER)
-  async getMySubmissions(@Request() req) {
+  async getMySubmissions(@Request() req: AuthenticatedRequest) {
     const studentId = req.user.sub;
     return this.submissionsService.getStudentSubmissions(studentId);
   }
@@ -47,7 +48,7 @@ export class SubmissionsController {
   @Post('submit')
   @Roles(Role.STUDENT, Role.TUTOR, Role.TEACHER)
   async submitSolution(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() body: { exerciseId: number; query: string },
   ) {
     const studentId = req.user.sub;

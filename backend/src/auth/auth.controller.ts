@@ -6,6 +6,7 @@ import { Controller, Post, Body, UseGuards, Get, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { BlockedUserGuard } from './blocked-user.guard';
+import { AuthenticatedRequest } from '../types/auth.types';
 
 /**
  * Controller für Authentifizierungs-Endpunkte: Registrierung, Login, Profil.
@@ -37,7 +38,7 @@ export class AuthController {
    */
   @UseGuards(JwtAuthGuard, BlockedUserGuard)
   @Get('me')
-  async me(@Req() req) {
+  async me(@Req() req: AuthenticatedRequest) {
     return this.authService.me(req.user);
   }
 
@@ -47,7 +48,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('update-profile')
   async updateProfile(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: { name: string; email: string },
   ) {
     return this.authService.updateProfile(req.user.sub, dto);
@@ -59,7 +60,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   async changePassword(
-    @Req() req,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: { currentPassword: string; newPassword: string },
   ) {
     return this.authService.changePassword(req.user.sub, dto);

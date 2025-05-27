@@ -3,7 +3,6 @@ import {
   Catch,
   ArgumentsHost,
   HttpException,
-  HttpStatus,
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
@@ -24,24 +23,26 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     // Get the original exception response
     const errorResponse = exception.getResponse();
-    
+
     // Create a standardized error structure
     const errorDetails = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
       method: request.method,
-      message: typeof errorResponse === 'object' && 'message' in errorResponse
-        ? errorResponse['message']
-        : exception.message,
-      error: typeof errorResponse === 'object' && 'error' in errorResponse
-        ? errorResponse['error']
-        : 'Unknown error',
+      message:
+        typeof errorResponse === 'object' && 'message' in errorResponse
+          ? errorResponse['message']
+          : exception.message,
+      error:
+        typeof errorResponse === 'object' && 'error' in errorResponse
+          ? errorResponse['error']
+          : 'Unknown error',
     };
 
     // Log the error details for server-side tracking
     this.logger.error(
-      `HTTP Exception: ${status} - ${errorDetails.message}`,
+      `HTTP Exception: ${status} - ${String(errorDetails.message)}`,
       `Path: ${request.method} ${request.url}`,
       exception.stack,
     );
@@ -49,4 +50,4 @@ export class HttpExceptionFilter implements ExceptionFilter {
     // Send the standardized error response
     response.status(status).json(errorDetails);
   }
-} 
+}

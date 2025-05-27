@@ -309,7 +309,7 @@ export class SqlProcessorService {
   public processSqlFileContent(
     sqlContent: string,
     originalFilename: string,
-    mysqlConverter: any, // MySqlConverterService injected
+    mysqlConverter: { convertToPostgreSQL: (sql: string) => string }, // MySqlConverterService interface
   ): {
     processedSql: string;
     schema: string;

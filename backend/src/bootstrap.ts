@@ -5,8 +5,8 @@ import { HttpExceptionFilter } from './filters/http-exception.filter';
 import * as express from 'express';
 import * as bodyParser from 'body-parser';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import * as compression from 'compression';
 import helmet from 'helmet';
+import * as compression from 'compression';
 import { join } from 'path';
 import { PrismaService } from './prisma/prisma.service';
 
@@ -29,7 +29,7 @@ export async function bootstrap() {
 
     // Security enhancements
     app.use(helmet());
-    
+
     // Performance optimizations
     app.use(compression());
 
@@ -37,7 +37,7 @@ export async function bootstrap() {
     app.use(bodyParser.json({ limit: '50mb' }));
     app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
     app.use(express.json({ limit: '50mb' }));
-    
+
     // Configure static assets
     app.use('/public', express.static('public'));
     app.useStaticAssets(join(__dirname, '..', 'uploads'), {
@@ -59,7 +59,7 @@ export async function bootstrap() {
 
     // Enable Prisma shutdown hooks with graceful app termination
     const prismaService = app.get(PrismaService);
-    await prismaService.enableShutdownHooks(app);
+    prismaService.enableShutdownHooks(app);
 
     // Start the server on specified port
     const port = process.env.PORT || 3000;
@@ -68,7 +68,10 @@ export async function bootstrap() {
 
     return app;
   } catch (error) {
-    console.error('Error starting server:', error);
+    console.error(
+      'Error starting server:',
+      error instanceof Error ? error.message : 'Unknown error',
+    );
     process.exit(1);
   }
-} 
+}

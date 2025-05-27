@@ -3,10 +3,9 @@ import {
   Catch,
   ArgumentsHost,
   HttpException,
-  HttpStatus,
   Logger,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 
 interface ErrorResponse {
   statusCode: number;
@@ -16,6 +15,17 @@ interface ErrorResponse {
   path: string;
 }
 
+// Define constants to avoid enum comparison issues
+const HTTP_STATUS = {
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  BAD_REQUEST: 400,
+  CONFLICT: 409,
+  UNPROCESSABLE_ENTITY: 422,
+  INTERNAL_SERVER_ERROR: 500,
+};
+
 @Catch(HttpException)
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
@@ -23,26 +33,39 @@ export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: HttpException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest();
+    const request = ctx.getRequest<Request>();
     const status = exception.getStatus();
     const exceptionResponse = exception.getResponse();
+
+    let errorMessage = 'An error occurred';
+    if (typeof exceptionResponse === 'string') {
+      errorMessage = exceptionResponse;
+    } else if (
+      typeof exceptionResponse === 'object' &&
+      exceptionResponse !== null
+    ) {
+      const typedResponse = exceptionResponse as Record<string, unknown>;
+      if (typedResponse.message && typeof typedResponse.message === 'string') {
+        errorMessage = typedResponse.message;
+      }
+    }
 
     const errorResponse: ErrorResponse = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
       error: this.getErrorType(status),
-      message:
-        typeof exceptionResponse === 'string'
-          ? exceptionResponse
-          : (exceptionResponse as any)?.message || 'An error occurred',
+      message: errorMessage,
     };
 
     // Log errors (but not 401/403 which are normal auth flows)
-    if (
-      status === HttpStatus.INTERNAL_SERVER_ERROR ||
-      (status >= 400 && status !== 401 && status !== 403)
-    ) {
+    const shouldLog =
+      status === HTTP_STATUS.INTERNAL_SERVER_ERROR ||
+      (status >= 400 &&
+        status !== HTTP_STATUS.UNAUTHORIZED &&
+        status !== HTTP_STATUS.FORBIDDEN);
+
+    if (shouldLog) {
       this.logger.error(
         `${request.method} ${request.url} - ${status}`,
         exception.stack,
@@ -51,20 +74,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     response.status(status).json(errorResponse);
   }
-
   private getErrorType(status: number): string {
     switch (status) {
-      case HttpStatus.UNAUTHORIZED:
+      case HTTP_STATUS.UNAUTHORIZED:
         return 'Unauthorized';
-      case HttpStatus.FORBIDDEN:
+      case HTTP_STATUS.FORBIDDEN:
         return 'Forbidden';
-      case HttpStatus.NOT_FOUND:
+      case HTTP_STATUS.NOT_FOUND:
         return 'Not Found';
-      case HttpStatus.BAD_REQUEST:
+      case HTTP_STATUS.BAD_REQUEST:
         return 'Bad Request';
-      case HttpStatus.CONFLICT:
+      case HTTP_STATUS.CONFLICT:
         return 'Conflict';
-      case HttpStatus.UNPROCESSABLE_ENTITY:
+      case HTTP_STATUS.UNPROCESSABLE_ENTITY:
         return 'Validation Error';
       default:
         return 'Internal Server Error';

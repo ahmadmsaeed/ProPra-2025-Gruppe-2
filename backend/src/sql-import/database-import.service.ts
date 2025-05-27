@@ -43,40 +43,47 @@ export class DatabaseImportService {
       const fileContent = file.buffer.toString('utf-8');
 
       // Validate the SQL content for security issues
-      const validationResult = this.databaseValidator.validateSqlFileContent(fileContent);
+      const validationResult =
+        this.databaseValidator.validateSqlFileContent(fileContent);
       if (!validationResult.valid) {
         throw new BadRequestException(validationResult.reason);
       }
-      
+
       // Process the SQL content through the processor service
       const processedData = this.sqlProcessor.processSqlFileContent(
         fileContent,
         file.originalname,
-        this.mysqlConverter
+        this.mysqlConverter,
       );
-      
+
       // Generate a unique name or use the provided one
-      const databaseName = name || this.sqlProcessor.generateUniqueDatabaseName(
-        file.originalname, 
-        processedData.fileType
-      );
-      
+      const databaseName =
+        name ||
+        this.sqlProcessor.generateUniqueDatabaseName(
+          file.originalname,
+          processedData.fileType,
+        );
+
       // Create the database entry
       const database = await this.databaseManagement.createDatabaseEntry(
         databaseName,
         processedData.schema,
         processedData.seedData,
         processedData.fileType,
-        authorId
+        authorId,
       );
 
       // Execute the SQL statements
       try {
-        await this.databaseExecution.executeSqlScript(processedData.processedSql);
+        await this.databaseExecution.executeSqlScript(
+          processedData.processedSql,
+        );
       } catch (error) {
         // Log the execution error but don't fail the import
-        console.error(`SQL execution error during import: ${error.message}`);
-        
+        console.error(
+          `SQL execution error during import: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+
         // If there's an error with the SQL, we should clean up the database entry
         // that was just created to avoid orphaned database records
         throw error;
@@ -85,7 +92,7 @@ export class DatabaseImportService {
       return database;
     } catch (error) {
       console.error('Error in importSqlFile:', error);
-      const errorMsg = this.errorService.handlePostgresError(error);
+      const errorMsg = this.errorService.handlePostgresError(error as Error);
       throw this.errorService.createBadRequestException(
         `SQL-Datei konnte nicht importiert werden: ${errorMsg}`,
       );
@@ -104,12 +111,12 @@ export class DatabaseImportService {
       return await this.databaseManagement.createDatabaseFromContent(
         sqlContent,
         baseName,
-        authorId
+        authorId,
       );
     } catch (error) {
       console.error('Error in createDatabaseFromSqlContent:', error);
       throw new BadRequestException(
-        `Failed to process SQL content: ${error.message}`,
+        `Failed to process SQL content: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }

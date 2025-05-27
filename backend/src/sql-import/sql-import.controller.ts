@@ -6,12 +6,10 @@ import {
   UseGuards,
   Body,
   Get,
-  Query,
   Param,
   Patch,
   Delete,
   Request,
-  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -20,8 +18,21 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
-import { Multer } from 'multer';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuthenticatedRequest } from '../types/auth.types';
+
+interface DatabaseUpdateData {
+  name?: string;
+  schema?: string;
+  seedData?: string;
+}
+
+interface DatabaseRequestBody {
+  database?: string | DatabaseUpdateData;
+  name?: string;
+  schema?: string;
+  seedData?: string;
+}
 
 @Controller('sql-import')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -38,10 +49,10 @@ export class SqlImportController {
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
     @Body('name') name?: string,
-    @Request() req?: any,
+    @Request() req?: AuthenticatedRequest,
   ) {
     // Get user ID from the authenticated request
-    const authorId = req.user?.sub;
+    const authorId = req?.user?.sub;
     return this.sqlImportService.importSqlFile(file, name, authorId);
   }
 
@@ -60,7 +71,7 @@ export class SqlImportController {
 
   @Post('databases')
   @Roles(Role.TEACHER)
-  async createDatabase(@Body() data: any) {
+  async createDatabase(@Body() data: DatabaseUpdateData) {
     return this.sqlImportService.create(data);
   }
 
@@ -69,9 +80,9 @@ export class SqlImportController {
   @UseInterceptors(FileInterceptor('sqlFile'))
   async updateDatabase(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: DatabaseRequestBody,
     @UploadedFile() sqlFile: Express.Multer.File,
-    @Request() req: any,
+    @Request() req: AuthenticatedRequest,
   ) {
     console.log('Received request to update database with ID:', id);
     console.log('Request body:', body);
@@ -81,11 +92,11 @@ export class SqlImportController {
     );
 
     // Parse database data from the request body - handle both database and direct properties
-    let data;
+    let data: DatabaseUpdateData;
     if (body.database) {
       data =
         typeof body.database === 'string'
-          ? JSON.parse(body.database)
+          ? (JSON.parse(body.database) as DatabaseUpdateData)
           : body.database;
     } else {
       // If no database field, use the body directly
@@ -100,7 +111,7 @@ export class SqlImportController {
       select: {
         id: true,
         authorId: true,
-      } as any,
+      },
     });
 
     if (!database) {
@@ -122,14 +133,17 @@ export class SqlImportController {
 
   @Delete('databases/:id')
   @Roles(Role.TEACHER, Role.TUTOR)
-  async deleteDatabase(@Param('id') id: string, @Request() req: any) {
+  async deleteDatabase(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
     // Check if the user has permission to delete this database
     const database = await this.prisma.database.findUnique({
       where: { id: +id },
       select: {
         id: true,
         authorId: true,
-      } as any,
+      },
     });
 
     if (!database) {
@@ -146,7 +160,7 @@ export class SqlImportController {
   async executeQuery(
     @Body('databaseId') databaseId: number,
     @Body('query') query: string,
-  ) {
+  ): Promise<unknown> {
     return this.sqlImportService.executeQuery(databaseId, query);
   }
 
@@ -159,20 +173,22 @@ export class SqlImportController {
     @Body('query') query: string,
   ) {
     try {
-      const result = await this.sqlImportService.executeQueryForStudent(
+      const result = (await this.sqlImportService.executeQueryForStudent(
         parseInt(databaseId),
         query,
         parseInt(studentId),
-      );
+      )) as unknown;
       return {
         success: true,
         result,
         message: 'Query executed successfully on temporary container',
       };
     } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       return {
         success: false,
-        error: error.message,
+        error: errorMessage,
         message: 'Failed to execute query on temporary container',
       };
     }

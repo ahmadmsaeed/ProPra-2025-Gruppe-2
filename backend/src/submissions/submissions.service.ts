@@ -1,13 +1,17 @@
 /**
  * Service for handling student exercise submissions
  */
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SqlImportService } from '../sql-import/sql-import.service';
+
+interface QueryResult {
+  [key: string]: unknown;
+}
+
+interface NormalizedRow {
+  [key: string]: string;
+}
 
 @Injectable()
 export class SubmissionsService {
@@ -72,17 +76,17 @@ export class SubmissionsService {
     // Execute both queries and compare results
     try {
       // Execute student query on temporary container
-      const studentResult = await this.sqlImportService.executeQueryForStudent(
+      const studentResult = (await this.sqlImportService.executeQueryForStudent(
         exercise.databaseSchemaId,
         query,
         studentId,
-      );
+      )) as QueryResult[];
 
       // Execute solution query on original database (for reference)
-      const solutionResult = await this.sqlImportService.executeQuery(
+      const solutionResult = (await this.sqlImportService.executeQuery(
         exercise.databaseSchemaId,
         exercise.solutionQuery,
-      );
+      )) as QueryResult[];
 
       // Compare results - first convert to strings to normalize formatting
       const studentResultStr = JSON.stringify(
@@ -112,11 +116,13 @@ export class SubmissionsService {
       });
     } catch (error) {
       // If there was an error executing the query, create a submission with error feedback
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unbekannter Fehler';
       return this.prisma.submission.create({
         data: {
           query,
           isCorrect: false,
-          feedback: `Fehler bei der Ausführung: ${error.message || 'Unbekannter Fehler'}`,
+          feedback: `Fehler bei der Ausführung: ${errorMessage}`,
           studentId,
           exerciseId,
         },
@@ -160,17 +166,19 @@ export class SubmissionsService {
    * Normalize query results for comparison
    * This handles differences in column ordering, capitalization, etc.
    */
-  private normalizeResult(result: any): any {
+  private normalizeResult(
+    result: QueryResult[] | null,
+  ): NormalizedRow[] | null {
     if (!result) return null;
 
-    // If not an array or empty array, return as is
+    // If not an array or empty array, return empty array
     if (!Array.isArray(result) || result.length === 0) {
-      return result;
+      return [];
     }
 
     // For result sets, normalize each row
     return result.map((row) => {
-      const normalizedRow: Record<string, any> = {};
+      const normalizedRow: NormalizedRow = {};
 
       // Sort keys alphabetically and lowercase them
       Object.keys(row)

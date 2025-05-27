@@ -1,5 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+interface DatabaseInfo {
+  id: number;
+  name: string;
+}
+
+interface TableInfo {
+  tableCount: number;
+  tableNames: string[];
+}
+
 @Injectable()
 export class DatabaseAuditService {
   private readonly logger = new Logger(DatabaseAuditService.name);
@@ -8,9 +18,9 @@ export class DatabaseAuditService {
    * Logs database creation events
    */
   logDatabaseCreation(
-    database: any,
+    database: DatabaseInfo,
     authorId: number | null,
-    tableInfo: any,
+    tableInfo: TableInfo,
   ): void {
     this.logger.log(
       `Database created: "${database.name}" (ID: ${database.id}) by user ${authorId || 'unknown'} with ${tableInfo.tableCount} tables: ${tableInfo.tableNames.join(', ') || 'none detected'}`,
@@ -20,7 +30,11 @@ export class DatabaseAuditService {
   /**
    * Logs database update events
    */
-  logDatabaseUpdate(database: any, userId: number | null, updates: any): void {
+  logDatabaseUpdate(
+    database: DatabaseInfo,
+    userId: number | null,
+    updates: Record<string, any>,
+  ): void {
     this.logger.log(
       `Database updated: "${database.name}" (ID: ${database.id}) by user ${userId || 'unknown'}. Fields updated: ${Object.keys(updates).join(', ')}`,
     );
@@ -30,7 +44,7 @@ export class DatabaseAuditService {
    * Logs database deletion events including dropped tables
    */
   logDatabaseDeletion(
-    database: any,
+    database: DatabaseInfo,
     userId: number | null,
     droppedTables: string[],
   ): void {

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY, RoleType } from './roles.decorator';
+import { AuthenticatedRequest } from '../types/auth.types';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -19,8 +20,9 @@ export class RolesGuard implements CanActivate {
     if (!requiredRoles || requiredRoles.length === 0) {
       return true;
     }
-    const { user } = context.switchToHttp().getRequest();
-    if (!user || !requiredRoles.includes(user.role)) {
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const user = request.user;
+    if (!user || !user.role || !requiredRoles.includes(user.role as RoleType)) {
       throw new ForbiddenException('Keine Berechtigung für diese Aktion');
     }
     return true;

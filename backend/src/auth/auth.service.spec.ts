@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { HttpException } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -37,7 +38,7 @@ describe('AuthService', () => {
       name: 'Test',
     });
     // bcrypt.compare will be false
-    jest.spyOn(require('bcryptjs'), 'compare').mockResolvedValue(false);
+    (jest.spyOn(bcrypt, 'compare') as jest.Mock).mockResolvedValue(false);
     await expect(
       service.login({ email: 'a@b.de', password: 'pw' }),
     ).rejects.toThrow(HttpException);
@@ -50,7 +51,7 @@ describe('AuthService', () => {
       id: 1,
       name: 'Test',
     });
-    jest.spyOn(require('bcryptjs'), 'compare').mockResolvedValue(true);
+    (jest.spyOn(bcrypt, 'compare') as jest.Mock).mockResolvedValue(true);
     jwt.sign.mockReturnValue('jwt-token');
     const result = await service.login({ email: 'a@b.de', password: 'pw' });
     expect(result).toEqual({

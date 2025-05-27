@@ -12,12 +12,17 @@ export class ContainerCleanupService {
    */
   async cleanupStudentContainers(studentId: number): Promise<void> {
     this.logger.log(`Cleaning up all containers for student ${studentId}`);
-    
+
     try {
       await this.containerService.cleanupAllContainersForStudent(studentId);
-      this.logger.log(`Successfully cleaned up containers for student ${studentId}`);
+      this.logger.log(
+        `Successfully cleaned up containers for student ${studentId}`,
+      );
     } catch (error) {
-      this.logger.error(`Failed to cleanup containers for student ${studentId}:`, error);
+      this.logger.error(
+        `Failed to cleanup containers for student ${studentId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -27,7 +32,7 @@ export class ContainerCleanupService {
    */
   async cleanupOldContainers(maxAgeMinutes: number = 60): Promise<void> {
     this.logger.log('Starting manual container cleanup...');
-    
+
     try {
       await this.containerService.cleanupOldContainers(maxAgeMinutes);
       this.logger.log('Manual container cleanup completed successfully');

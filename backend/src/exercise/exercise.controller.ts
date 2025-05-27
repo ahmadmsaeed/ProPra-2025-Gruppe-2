@@ -21,7 +21,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
-import { CreateExerciseDto } from './dto/create-exercise.dto';
+import { AuthenticatedRequest } from '../types/auth.types';
 
 @Controller('exercises')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -51,17 +51,18 @@ export class ExerciseController {
   @Roles(Role.TEACHER, Role.TUTOR)
   @UseInterceptors(FileInterceptor('sqlFile'))
   async createExercise(
-    @Request() req,
-    @Body() body: any,
+    @Request() req: AuthenticatedRequest,
+    @Body() body: { exercise: string | Record<string, unknown> },
     @UploadedFile() sqlFile: Express.Multer.File,
   ) {
-    const exerciseData =
+    const exerciseData: Record<string, unknown> =
       typeof body.exercise === 'string'
-        ? JSON.parse(body.exercise)
+        ? (JSON.parse(body.exercise) as Record<string, unknown>)
         : body.exercise;
+    const userId = req.user.sub;
     return this.exerciseService.create({
       ...exerciseData,
-      authorId: req.user.sub,
+      authorId: userId,
       sqlFile,
     });
   }
@@ -74,17 +75,18 @@ export class ExerciseController {
   @UseInterceptors(FileInterceptor('sqlFile'))
   async updateExercise(
     @Param('id') id: string,
-    @Request() req,
-    @Body() body: any,
+    @Request() req: AuthenticatedRequest,
+    @Body() body: { exercise: string | object },
     @UploadedFile() sqlFile: Express.Multer.File,
   ) {
     const exerciseData =
       typeof body.exercise === 'string'
-        ? JSON.parse(body.exercise)
+        ? (JSON.parse(body.exercise) as Record<string, unknown>)
         : body.exercise;
+    const userId = req.user.sub;
     return this.exerciseService.update(+id, {
       ...exerciseData,
-      authorId: req.user.sub,
+      authorId: userId,
       sqlFile,
     });
   }
@@ -94,9 +96,10 @@ export class ExerciseController {
    */
   @Delete(':id')
   @Roles(Role.TEACHER, Role.TUTOR)
-  async deleteExercise(@Param('id') id: string, @Request() req) {
-    // Map sub to id for compatibility
-    const user = { ...req.user, id: req.user.sub };
-    return this.exerciseService.delete(+id, user);
+  async deleteExercise(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.exerciseService.delete(+id, req.user.sub, req.user.role);
   }
 }

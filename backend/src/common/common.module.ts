@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ErrorService } from './services/error.service';
 import { SqlProcessorService } from './services/sql-processor.service';
 import { MySqlConverterService } from './services/mysql-converter.service';

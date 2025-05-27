@@ -1,6 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
+interface DatabaseQueryResult {
+  name: string;
+  id: number;
+  schema: string;
+}
+
 @Injectable()
 export class DatabaseTableManagerService {
   constructor(private prisma: PrismaService) {}
@@ -22,7 +28,7 @@ export class DatabaseTableManagerService {
     const insertTableRegex = /INSERT\s+INTO\s+(?:"([^"]+)"|([^\s(;"]+))/gi;
 
     // Process CREATE TABLE statements
-    let match;
+    let match: RegExpExecArray | null;
     while ((match = createTableRegex.exec(schema)) !== null) {
       // The table name will be in capture group 1 (with quotes) or 2 (without quotes)
       const tableName = match[1] || match[2];
@@ -51,7 +57,7 @@ export class DatabaseTableManagerService {
   /**
    * Drops database tables associated with a specific database schema
    */
-  async dropDatabaseTables(database: any): Promise<string[]> {
+  async dropDatabaseTables(database: DatabaseQueryResult): Promise<string[]> {
     try {
       console.log(
         `Attempting to drop tables for database: ${database.name} (ID: ${database.id})`,
@@ -134,7 +140,7 @@ export class DatabaseTableManagerService {
               );
               console.log(`Dropped table derived from name: ${wordTableName}`);
               droppedTables.push(wordTableName);
-            } catch (err) {
+            } catch {
               // Ignore errors here
             }
           }

@@ -10,10 +10,29 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SqlImportService } from '../sql-import/sql-import.service';
-import { User } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
 import { IExerciseService } from './interfaces/exercise.service.interface';
+
+interface ExerciseCreateData {
+  title: string;
+  description: string;
+  initialQuery?: string;
+  solutionQuery: string;
+  databaseSchemaId?: number;
+  authorId: number;
+  sqlFile?: Express.Multer.File;
+}
+
+interface ExerciseUpdateData {
+  title?: string;
+  description?: string;
+  initialQuery?: string;
+  solutionQuery?: string;
+  databaseSchemaId?: number;
+  authorId?: number;
+  sqlFile?: Express.Multer.File;
+}
 
 @Injectable()
 export class ExerciseService implements IExerciseService {
@@ -76,7 +95,7 @@ export class ExerciseService implements IExerciseService {
    * Creates a new exercise. If a SQL file is provided, creates a new database as well.
    * Validates authorId and databaseSchemaId as needed.
    */
-  async create(data: any) {
+  async create(data: ExerciseCreateData) {
     const { sqlFile, databaseSchemaId, authorId, ...exerciseData } = data;
 
     // Validate authorId
@@ -92,12 +111,13 @@ export class ExerciseService implements IExerciseService {
         // Use the SqlImportService to create a database from the SQL file
         const sqlContent = sqlFile.buffer.toString('utf-8');
         const baseName = sqlFile.originalname.replace(/\.sql$/i, '');
-        
-        const newDatabase = await this.sqlImportService.createDatabaseFromSqlContent(
-          sqlContent,
-          baseName,
-          authorId
-        );
+
+        const newDatabase =
+          await this.sqlImportService.createDatabaseFromSqlContent(
+            sqlContent,
+            baseName,
+            authorId,
+          );
 
         // Create the exercise with the new database
         return this.prisma.exercise.create({
@@ -126,8 +146,10 @@ export class ExerciseService implements IExerciseService {
           },
         });
       } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error occurred';
         throw new BadRequestException(
-          `Failed to create database from SQL file: ${error.message}`,
+          `Failed to create database from SQL file: ${errorMessage}`,
         );
       }
     }
@@ -174,7 +196,7 @@ export class ExerciseService implements IExerciseService {
    * Updates an existing exercise. Only the author (or teacher) can update.
    * If a new SQL file is provided, updates the solutionQuery.
    */
-  async update(id: number, data: any) {
+  async update(id: number, data: ExerciseUpdateData) {
     const exercise = await this.findOne(id);
 
     // Check if user has permission to update
@@ -211,13 +233,13 @@ export class ExerciseService implements IExerciseService {
    * Deletes an exercise. Teachers can delete any, tutors only their own.
    * Throws ForbiddenException if not allowed.
    */
-  async delete(id: number, user: User) {
+  async delete(id: number, userId: number, userRole: string = 'STUDENT') {
     const exercise = await this.findOne(id);
 
     // Check if user has permission to delete (ensure type safety)
     if (
-      user.role !== 'TEACHER' &&
-      Number(user.id) !== Number(exercise.authorId)
+      userRole !== 'TEACHER' &&
+      Number(userId) !== Number(exercise.authorId)
     ) {
       throw new ForbiddenException('You can only delete your own exercises');
     }

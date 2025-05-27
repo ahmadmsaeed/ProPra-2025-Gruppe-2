@@ -6,6 +6,11 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { Role } from '@prisma/client';
 
+interface DatabaseWithAuthor {
+  id: number;
+  authorId: number | null;
+}
+
 @Injectable()
 export class DatabaseOwnershipService {
   constructor(private prisma: PrismaService) {}
@@ -40,19 +45,20 @@ export class DatabaseOwnershipService {
     }
 
     // Tutors can only edit their own databases
-    const database = await this.prisma.database.findUnique({
-      where: { id: databaseId },
-      select: {
-        id: true,
-        authorId: true,
-      } as any, // Cast as any since authorId may not be in the type definition
-    });
+    const database: DatabaseWithAuthor | null =
+      await this.prisma.database.findUnique({
+        where: { id: databaseId },
+        select: {
+          id: true,
+          authorId: true,
+        },
+      });
 
     if (!database) {
       throw new NotFoundException(`Database with ID ${databaseId} not found`);
     }
 
-    return userId === (database as any).authorId; // Cast as any since authorId may not be in the type definition
+    return userId === database.authorId;
   }
 
   /**

@@ -9,6 +9,33 @@ import { SqlValidatorService } from '../common/services/sql-validator.service';
 import { SqlProcessorService } from '../common/services/sql-processor.service';
 import { DatabaseContainerService } from './database-container.service';
 
+// PostgreSQL error interface for better type safety
+interface PostgreSQLError extends Error {
+  message: string;
+  code?: string;
+  detail?: string;
+  hint?: string;
+  position?: string;
+  internalPosition?: string;
+  internalQuery?: string;
+  where?: string;
+  schema?: string;
+  table?: string;
+  column?: string;
+  dataType?: string;
+  constraint?: string;
+}
+
+// Type guard for PostgreSQL errors
+function isPostgreSQLError(error: unknown): error is PostgreSQLError {
+  return error instanceof Error && 'code' in error;
+}
+
+// Type guard for errors with message property
+function hasErrorMessage(error: unknown): error is { message: string } {
+  return typeof error === 'object' && error !== null && 'message' in error;
+}
+
 @Injectable()
 export class DatabaseExecutionService {
   constructor(
@@ -52,10 +79,11 @@ export class DatabaseExecutionService {
 
     try {
       // Create or get temporary container for this student and database
-      const containerInfo = await this.containerService.createTemporaryContainer(
-        studentId,
-        databaseId,
-      );
+      const containerInfo =
+        await this.containerService.createTemporaryContainer(
+          studentId,
+          databaseId,
+        );
 
       // Execute query on the temporary container
       return await this.containerService.executeQueryOnContainer(
@@ -64,16 +92,19 @@ export class DatabaseExecutionService {
       );
     } catch (error) {
       console.error('Error executing query on temporary container:', error);
-      const errorMsg = this.errorService.handlePostgresError(error);
+      const errorMsg = this.errorService.handlePostgresError(
+        error as PostgreSQLError,
+      );
 
       // Check if this is a "relation does not exist" error and provide a more helpful message
       if (
-        error.message &&
+        hasErrorMessage(error) &&
         error.message.includes('relation') &&
         error.message.includes('does not exist')
       ) {
         // Extract the table name from the error message if possible
-        const tableNameMatch = error.message.match(
+        const errorMessage = hasErrorMessage(error) ? error.message : '';
+        const tableNameMatch = errorMessage.match(
           /relation "([^"]+)" does not exist/,
         );
         const tableName = tableNameMatch ? tableNameMatch[1] : 'unknown';
@@ -92,7 +123,10 @@ export class DatabaseExecutionService {
   /**
    * Execute a database query directly on the original database (for admins)
    */
-  private async executeQueryDirect(databaseId: number, query: string): Promise<any> {
+  private async executeQueryDirect(
+    databaseId: number,
+    query: string,
+  ): Promise<any> {
     const dbEntry = await this.prisma.database.findUnique({
       where: { id: databaseId },
     });
@@ -112,16 +146,19 @@ export class DatabaseExecutionService {
       return await this.prisma.$queryRawUnsafe(query);
     } catch (error) {
       console.error('Error executing query:', error);
-      const errorMsg = this.errorService.handlePostgresError(error);
+      const errorMsg = this.errorService.handlePostgresError(
+        error as PostgreSQLError,
+      );
 
       // Check if this is a "relation does not exist" error and provide a more helpful message
       if (
-        error.message &&
+        hasErrorMessage(error) &&
         error.message.includes('relation') &&
         error.message.includes('does not exist')
       ) {
         // Extract the table name from the error message if possible
-        const tableNameMatch = error.message.match(
+        const errorMessage = hasErrorMessage(error) ? error.message : '';
+        const tableNameMatch = errorMessage.match(
           /relation "([^"]+)" does not exist/,
         );
         const tableName = tableNameMatch ? tableNameMatch[1] : 'unknown';
@@ -161,30 +198,36 @@ export class DatabaseExecutionService {
     // Track successful statements
     let successCount = 0;
 
-    // Default batch size to 10 if not specified
-    const batchSize = options.batchSize || 10;
     // Default to using transactions
     const useTransaction = options.useTransaction !== false;
 
     // Filter out empty statements
-    const validStatements = statements.filter(stmt => stmt.trim().length > 0);
-    
-    console.log(`Executing ${validStatements.length} SQL statements ${useTransaction ? 'in transaction' : 'without transaction'}`);
-    
+    const validStatements = statements.filter((stmt) => stmt.trim().length > 0);
+
+    console.log(
+      `Executing ${validStatements.length} SQL statements ${useTransaction ? 'in transaction' : 'without transaction'}`,
+    );
+
     // First, categorize statements
-    const createTableStatements = validStatements.filter(stmt => 
-      stmt.trim().toUpperCase().startsWith('CREATE TABLE'));
-    
-    const insertStatements = validStatements.filter(stmt => 
-      stmt.trim().toUpperCase().startsWith('INSERT INTO'));
-    
-    const otherStatements = validStatements.filter(stmt => 
-      !stmt.trim().toUpperCase().startsWith('CREATE TABLE') && 
-      !stmt.trim().toUpperCase().startsWith('INSERT INTO'));
-    
-    console.log(`Statement breakdown: ${createTableStatements.length} CREATE TABLE, ` +
-                `${otherStatements.length} other DDL, ${insertStatements.length} INSERT INTO`);
-    
+    const createTableStatements = validStatements.filter((stmt) =>
+      stmt.trim().toUpperCase().startsWith('CREATE TABLE'),
+    );
+
+    const insertStatements = validStatements.filter((stmt) =>
+      stmt.trim().toUpperCase().startsWith('INSERT INTO'),
+    );
+
+    const otherStatements = validStatements.filter(
+      (stmt) =>
+        !stmt.trim().toUpperCase().startsWith('CREATE TABLE') &&
+        !stmt.trim().toUpperCase().startsWith('INSERT INTO'),
+    );
+
+    console.log(
+      `Statement breakdown: ${createTableStatements.length} CREATE TABLE, ` +
+        `${otherStatements.length} other DDL, ${insertStatements.length} INSERT INTO`,
+    );
+
     // First execute all CREATE TABLE statements
     for (const statement of createTableStatements) {
       try {
@@ -193,11 +236,13 @@ export class DatabaseExecutionService {
         console.log(`Successfully executed: ${statement.substring(0, 50)}...`);
       } catch (err) {
         this.handleStatementError(statement, err, errors, warnings);
-        console.log(`Handling CREATE TABLE error: ${err.code || 'unknown'}`);
+        console.log(
+          `Handling CREATE TABLE error: ${isPostgreSQLError(err) ? err.code || 'unknown' : 'unknown'}`,
+        );
         // Non-critical errors like table already exists should not prevent further execution
       }
     }
-    
+
     // Then execute all other DDL statements
     for (const statement of otherStatements) {
       try {
@@ -206,10 +251,12 @@ export class DatabaseExecutionService {
         console.log(`Successfully executed: ${statement.substring(0, 50)}...`);
       } catch (err) {
         this.handleStatementError(statement, err, errors, warnings);
-        console.log(`Handling DDL error: ${err.code || 'unknown'}`);
+        console.log(
+          `Handling DDL error: ${isPostgreSQLError(err) ? err.code || 'unknown' : 'unknown'}`,
+        );
       }
     }
-    
+
     // Finally execute all INSERT statements
     for (const statement of insertStatements) {
       try {
@@ -217,14 +264,16 @@ export class DatabaseExecutionService {
         successCount++;
       } catch (err) {
         this.handleStatementError(statement, err, errors, warnings);
-        console.log(`Handling INSERT error: ${err.code || 'unknown'}`);
+        console.log(
+          `Handling INSERT error: ${isPostgreSQLError(err) ? err.code || 'unknown' : 'unknown'}`,
+        );
       }
     }
 
     // Build the appropriate response
     return this.buildExecutionResponse(successCount, errors, warnings);
   }
-  
+
   /**
    * Handle errors from statement execution
    */
@@ -235,22 +284,31 @@ export class DatabaseExecutionService {
     warnings: string[],
   ): void {
     // Use the error service to generate a user-friendly error message
-    const errorMsg = this.errorService.handlePostgresError(err);
+    const errorMsg = this.errorService.handlePostgresError(
+      err as PostgreSQLError,
+    );
 
     // Add statement info to error message for better debugging
-    const statementInfo = statement.substring(0, 50) + (statement.length > 50 ? '...' : '');
+    const statementInfo =
+      statement.substring(0, 50) + (statement.length > 50 ? '...' : '');
     const enhancedMessage = `[${statementInfo}] ${errorMsg}`;
 
     // Determine if this is a critical error or just a warning
-    if (this.errorService.isNonCriticalError(err)) {
-      console.warn(`Non-critical error in statement: ${enhancedMessage}`, err.code);
+    if (this.errorService.isNonCriticalError(err as PostgreSQLError)) {
+      console.warn(
+        `Non-critical error in statement: ${enhancedMessage}`,
+        isPostgreSQLError(err) ? err.code : 'unknown',
+      );
       warnings.push(enhancedMessage);
     } else {
-      console.error(`Critical error in statement: ${enhancedMessage}`, err.code);
+      console.error(
+        `Critical error in statement: ${enhancedMessage}`,
+        isPostgreSQLError(err) ? err.code : 'unknown',
+      );
       errors.push(enhancedMessage);
     }
   }
-  
+
   /**
    * Build the execution response object
    */
@@ -307,8 +365,8 @@ export class DatabaseExecutionService {
    */
   async executeSqlScript(
     sqlContent: string,
-    options: { 
-      validateOnly?: boolean; 
+    options: {
+      validateOnly?: boolean;
       useTransaction?: boolean;
       executionId?: string;
     } = {},
@@ -322,14 +380,15 @@ export class DatabaseExecutionService {
     // Split the SQL into individual statements first
     const statements = this.sqlProcessor.splitIntoStatements(sqlContent);
     console.log(`SQL split into ${statements.length} statements`);
-    
+
     // Log a sample of statements for debugging
     if (statements.length > 0) {
-      console.log('First statement preview:', 
-                  statements[0].substring(0, 100));
+      console.log('First statement preview:', statements[0].substring(0, 100));
       if (statements.length > 1) {
-        console.log('Second statement preview:', 
-                   statements[1].substring(0, 100));
+        console.log(
+          'Second statement preview:',
+          statements[1].substring(0, 100),
+        );
       }
     }
 
@@ -358,7 +417,7 @@ export class DatabaseExecutionService {
 
     // Execute statements in optimized order
     return this.executeStatements(statements, {
-      useTransaction: options.useTransaction ?? false
+      useTransaction: options.useTransaction ?? false,
     });
   }
 
@@ -376,22 +435,27 @@ export class DatabaseExecutionService {
     const dbEntry = await this.prisma.database.findUnique({
       where: { id: databaseId },
     });
-    
+
     if (!dbEntry) {
       throw new NotFoundException(`Database with ID ${databaseId} not found.`);
     }
 
     try {
       const result = await this.executeSqlScript(sqlContent);
-      
+
       return {
         success: result.success,
         message: result.message,
         warnings: result.warnings,
       };
     } catch (error) {
-      console.error(`Error in validateAndExecuteSql for database ${databaseId}:`, error);
-      const errorMsg = this.errorService.handlePostgresError(error);
+      console.error(
+        `Error in validateAndExecuteSql for database ${databaseId}:`,
+        error,
+      );
+      const errorMsg = this.errorService.handlePostgresError(
+        error as PostgreSQLError,
+      );
       throw new BadRequestException(`Failed to execute SQL: ${errorMsg}`);
     }
   }

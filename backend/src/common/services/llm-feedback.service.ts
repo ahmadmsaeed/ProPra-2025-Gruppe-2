@@ -10,8 +10,8 @@ export interface FeedbackRequest {
   exerciseDescription: string;
   exerciseTitle: string;
   isCorrect: boolean;
-  studentResult?: any[];
-  solutionResult?: any[];
+  studentResult?: Record<string, unknown>[];
+  solutionResult?: Record<string, unknown>[];
   errorMessage?: string;
   databaseSchema?: string;
 }
@@ -116,7 +116,7 @@ Regeln:
     const response = await fetch(this.apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.openaiApiKey}`,
+        Authorization: `Bearer ${this.openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -124,12 +124,13 @@ Regeln:
         messages: [
           {
             role: 'system',
-            content: 'Du bist ein hilfsbereiter SQL-Tutor, der Studenten beim Lernen unterstützt.'
+            content:
+              'Du bist ein hilfsbereiter SQL-Tutor, der Studenten beim Lernen unterstützt.',
           },
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         max_tokens: 800,
         temperature: 0.7,
@@ -140,7 +141,15 @@ Regeln:
       throw new Error(`OpenAI API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    interface OpenAIResponse {
+      choices: Array<{
+        message?: {
+          content?: string;
+        };
+      }>;
+    }
+
+    const data = (await response.json()) as OpenAIResponse;
     return data.choices[0]?.message?.content || '';
   }
 
@@ -152,12 +161,15 @@ Regeln:
       // Try to extract JSON from the response
       const jsonMatch = response.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
+        const parsedJson = jsonMatch[0];
+        const parsed = JSON.parse(parsedJson) as Record<string, unknown>;
         return {
-          feedback: parsed.feedback || 'Feedback konnte nicht generiert werden.',
-          hints: parsed.hints || [],
-          suggestions: parsed.suggestions || [],
-          explanation: parsed.explanation || '',
+          feedback:
+            (parsed.feedback as string) ||
+            'Feedback konnte nicht generiert werden.',
+          hints: (parsed.hints as string[]) || [],
+          suggestions: (parsed.suggestions as string[]) || [],
+          explanation: (parsed.explanation as string) || '',
         };
       }
     } catch (error) {
@@ -179,10 +191,12 @@ Regeln:
   private getFallbackFeedback(request: FeedbackRequest): FeedbackResponse {
     if (request.isCorrect) {
       return {
-        feedback: 'Excellent! Deine Lösung ist korrekt und liefert das erwartete Ergebnis.',
+        feedback:
+          'Excellent! Deine Lösung ist korrekt und liefert das erwartete Ergebnis.',
         hints: ['Du hast die Aufgabe erfolgreich gelöst!'],
         suggestions: ['Versuche als nächstes eine schwierigere Aufgabe.'],
-        explanation: 'Deine SQL-Abfrage entspricht der Musterlösung und liefert das korrekte Ergebnis.',
+        explanation:
+          'Deine SQL-Abfrage entspricht der Musterlösung und liefert das korrekte Ergebnis.',
       };
     }
 
@@ -192,7 +206,9 @@ Regeln:
     if (request.errorMessage) {
       if (request.errorMessage.includes('syntax error')) {
         hints.push('Es gibt einen Syntaxfehler in deiner SQL-Abfrage.');
-        suggestions.push('Überprüfe die SQL-Syntax, insbesondere Anführungszeichen und Kommas.');
+        suggestions.push(
+          'Überprüfe die SQL-Syntax, insbesondere Anführungszeichen und Kommas.',
+        );
       }
       if (request.errorMessage.includes('does not exist')) {
         hints.push('Eine Tabelle oder Spalte existiert nicht.');
@@ -207,10 +223,12 @@ Regeln:
     }
 
     return {
-      feedback: 'Deine Lösung ist noch nicht ganz richtig. Schau dir die Hinweise unten an!',
+      feedback:
+        'Deine Lösung ist noch nicht ganz richtig. Schau dir die Hinweise unten an!',
       hints,
       suggestions,
-      explanation: 'Analysiere die Musterlösung und vergleiche sie mit deiner Abfrage.',
+      explanation:
+        'Analysiere die Musterlösung und vergleiche sie mit deiner Abfrage.',
     };
   }
 }

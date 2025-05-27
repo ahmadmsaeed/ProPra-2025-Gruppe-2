@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { SqlImportService } from './sql-import.service';
 import { SqlImportController } from './sql-import.controller';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -16,15 +16,15 @@ import { ContainerCleanupService } from '../common/services/container-cleanup.se
     SqlImportService,
     {
       provide: DatabaseImportService,
-      useClass: DatabaseImportService
+      useClass: DatabaseImportService,
     },
     DatabaseExecutionService,
     DatabaseContainerService,
     ContainerCleanupService,
     {
       provide: DatabaseManagementService,
-      useClass: DatabaseManagementService
-    }
+      useClass: DatabaseManagementService,
+    },
   ],
   exports: [SqlImportService],
 })

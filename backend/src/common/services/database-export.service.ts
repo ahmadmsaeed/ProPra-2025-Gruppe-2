@@ -15,8 +15,8 @@ export class DatabaseExportService {
   /**
    * Exports a database schema as SQL file content
    */
-  async exportDatabaseSql(databaseId: number): Promise<{ 
-    sql: string; 
+  async exportDatabaseSql(databaseId: number): Promise<{
+    sql: string;
     filename: string;
   }> {
     // Get the database
@@ -55,4 +55,4 @@ export class DatabaseExportService {
       filename,
     };
   }
-} 
+}

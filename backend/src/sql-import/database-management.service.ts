@@ -1,7 +1,6 @@
 import {
   Injectable,
   NotFoundException,
-  ForbiddenException,
   BadRequestException,
   Inject,
   forwardRef,
@@ -12,6 +11,37 @@ import { DatabaseAuditService } from '../common/services/database-audit.service'
 import { DatabaseTableManagerService } from '../common/services/database-table-manager.service';
 import { SqlProcessorService } from '../common/services/sql-processor.service';
 import { DatabaseImportService } from './database-import.service';
+
+// Define proper interfaces for type safety
+interface DatabaseCreateData {
+  name: string;
+  schema: string;
+  seedData: string;
+  authorId?: number;
+}
+
+interface DatabaseUpdateData {
+  name?: string;
+  schema?: string;
+  seedData?: string;
+}
+
+interface TableInfo {
+  tableNames: string[];
+  tableCount: number;
+}
+
+// Types for external service interfaces
+interface DatabaseInfo {
+  id: number;
+  name: string;
+}
+
+interface DatabaseQueryResult {
+  name: string;
+  id: number;
+  schema: string;
+}
 
 /**
  * Service for handling database management operations
@@ -43,7 +73,7 @@ export class DatabaseManagementService {
             name: true,
           },
         },
-      } as any,
+      },
       orderBy: { id: 'desc' },
     });
 
@@ -72,7 +102,7 @@ export class DatabaseManagementService {
             name: true,
           },
         },
-      } as any,
+      },
     });
 
     if (!database) {
@@ -110,7 +140,7 @@ export class DatabaseManagementService {
             name: true,
           },
         },
-      } as any,
+      },
     });
 
     if (!database) {
@@ -123,7 +153,7 @@ export class DatabaseManagementService {
   /**
    * Creates a new database schema.
    */
-  async create(data: any) {
+  async create(data: DatabaseCreateData) {
     return this.prisma.database.create({
       data,
     });
@@ -136,7 +166,7 @@ export class DatabaseManagementService {
    */
   async update(
     id: number,
-    data: any,
+    data: DatabaseUpdateData,
     userId?: number,
     userRole?: string,
     sqlFile?: Express.Multer.File,
@@ -157,19 +187,25 @@ export class DatabaseManagementService {
       const importedDb = await this.databaseImport.importSqlFile(
         sqlFile,
         database.name,
-        userId
+        userId,
       );
-      
+
       // Update only the schema and seedData from the imported database
-      data.schema = importedDb.schema;
-      data.seedData = importedDb.seedData;
-      
+      if ('schema' in importedDb) {
+        data.schema = importedDb.schema;
+      }
+      if ('seedData' in importedDb && importedDb.seedData) {
+        data.seedData = importedDb.seedData;
+      }
+
       // Clean up the temporarily created database
       await this.prisma.database
         .delete({
           where: { id: importedDb.id },
         })
-        .catch((err) => console.error('Failed to delete temporary database:', err));
+        .catch((err) =>
+          console.error('Failed to delete temporary database:', err),
+        );
     }
 
     // Log the update
@@ -187,7 +223,7 @@ export class DatabaseManagementService {
    */
   async updateDatabase(
     id: number,
-    updateData: any,
+    updateData: DatabaseUpdateData,
     userId: number,
     userRole: string,
   ) {
@@ -202,7 +238,7 @@ export class DatabaseManagementService {
         name: true,
         schema: true,
         seedData: true,
-      } as any,
+      },
     });
 
     if (!database) {
@@ -216,7 +252,11 @@ export class DatabaseManagementService {
     });
 
     // Log the update
-    this.databaseAudit.logDatabaseUpdate(database, userId, updateData);
+    this.databaseAudit.logDatabaseUpdate(
+      database as DatabaseInfo,
+      userId,
+      updateData,
+    );
 
     return updatedDatabase;
   }
@@ -239,7 +279,8 @@ export class DatabaseManagementService {
 
     try {
       // Before deleting the database entry, drop its tables from PostgreSQL
-      const droppedTables = await this.tableManager.dropDatabaseTables(database);
+      const droppedTables =
+        await this.tableManager.dropDatabaseTables(database);
 
       // Log the deletion event
       this.databaseAudit.logDatabaseDeletion(
@@ -252,11 +293,19 @@ export class DatabaseManagementService {
       return await this.prisma.database.delete({
         where: { id },
       });
-    } catch (error) {
+    } catch (err: unknown) {
       // Check if this is a foreign key constraint error (database is in use)
+      const error = err;
+      const isP2003Error =
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        (error as { code: string }).code === 'P2003';
+
       if (
-        error.code === 'P2003' ||
-        error.message.includes('foreign key constraint')
+        isP2003Error ||
+        (error instanceof Error &&
+          error.message.includes('foreign key constraint'))
       ) {
         throw new BadRequestException(
           'This database cannot be deleted because it is being used by one or more exercises.',
@@ -269,11 +318,7 @@ export class DatabaseManagementService {
   /**
    * Delete a database
    */
-  async deleteDatabase(
-    id: number,
-    userId: number,
-    userRole: string,
-  ) {
+  async deleteDatabase(id: number, userId: number, userRole: string) {
     // Check if user has permission to delete
     await this.databaseOwnership.validateDeletePermission(id, userId, userRole);
 
@@ -284,7 +329,7 @@ export class DatabaseManagementService {
         id: true,
         name: true,
         schema: true,
-      } as any,
+      },
     });
 
     if (!database) {
@@ -292,7 +337,9 @@ export class DatabaseManagementService {
     }
 
     // Drop the associated database tables
-    const droppedTables = await this.tableManager.dropDatabaseTables(database);
+    const droppedTables = await this.tableManager.dropDatabaseTables(
+      database as DatabaseQueryResult,
+    );
 
     // Delete the database entry
     await this.prisma.database.delete({
@@ -300,9 +347,15 @@ export class DatabaseManagementService {
     });
 
     // Log the deletion
-    this.databaseAudit.logDatabaseDeletion(database, userId, droppedTables);
+    this.databaseAudit.logDatabaseDeletion(
+      database as DatabaseInfo,
+      userId,
+      droppedTables,
+    );
 
-    return { message: `Database ${database.name} deleted successfully` };
+    return {
+      message: `Database ${database?.name || 'unknown'} deleted successfully`,
+    };
   }
 
   /**
@@ -316,14 +369,19 @@ export class DatabaseManagementService {
     authorId?: number,
   ) {
     // Analyze tables in the SQL content for better cleanup later
-    const tableInfo = this.tableManager.analyzeTableStructure(schema);
+    const tableInfo = this.tableManager.analyzeTableStructure(
+      schema,
+    ) as TableInfo;
+    const tableNames = Array.isArray(tableInfo.tableNames)
+      ? tableInfo.tableNames
+      : [];
     console.log(
-      `Database "${name}" contains tables: ${tableInfo.tableNames.join(', ') || 'none detected'}`,
+      `Database "${name}" contains tables: ${tableNames.join(', ') || 'none detected'}`,
     );
 
     // Validate the schema
-    const validationResult = await this.validateDatabaseSchemaAndTables(schema, tableInfo);
-    
+    await this.validateDatabaseSchemaAndTables(schema, tableInfo);
+
     console.log(`Creating database entry with name: ${name}`);
 
     // Create database entry
@@ -333,25 +391,30 @@ export class DatabaseManagementService {
         schema: schema,
         seedData: seedData,
         authorId: authorId,
-      } as any,
+      } satisfies DatabaseCreateData,
     });
 
     // Log database creation
     this.databaseAudit.logDatabaseCreation(
-      database,
+      database as DatabaseInfo,
       authorId || null,
       tableInfo,
     );
 
     return database;
   }
-  
+
   /**
    * Validates schema and tables before creating a database
    */
-  private async validateDatabaseSchemaAndTables(schema: string, tableInfo: any) {
-    const schemaValidationSvc = new (await import('../common/services/database-validator.service')).DatabaseValidatorService();
-    
+  private async validateDatabaseSchemaAndTables(
+    schema: string,
+    tableInfo: any,
+  ) {
+    const schemaValidationSvc = new (
+      await import('../common/services/database-validator.service')
+    ).DatabaseValidatorService();
+
     // Validate the schema
     const validationResult = schemaValidationSvc.validateSchema(schema);
     if (!validationResult.valid) {
@@ -362,17 +425,17 @@ export class DatabaseManagementService {
 
     // Validate table names
     const tableNameValidation = schemaValidationSvc.validateTableNames(
-      tableInfo.tableNames,
+      (tableInfo as TableInfo).tableNames,
     );
     if (!tableNameValidation.valid) {
       throw new BadRequestException(
         `Table name validation failed: ${tableNameValidation.reason}`,
       );
     }
-    
+
     return validationResult;
   }
-  
+
   /**
    * Creates a database from SQL file content
    */
@@ -383,36 +446,42 @@ export class DatabaseManagementService {
   ) {
     try {
       // Use SQL processor to prepare the content
-      const processorSvc = new (await import('../common/services/sql-processor.service')).SqlProcessorService();
-      const converterSvc = new (await import('../common/services/mysql-converter.service')).MySqlConverterService(processorSvc);
-      
+      const processorSvc = new (
+        await import('../common/services/sql-processor.service')
+      ).SqlProcessorService();
+      const converterSvc = new (
+        await import('../common/services/mysql-converter.service')
+      ).MySqlConverterService(processorSvc);
+
       // Process the SQL content
       const processedData = processorSvc.processSqlFileContent(
         sqlContent,
         name || 'database',
-        converterSvc
+        converterSvc,
       );
-      
+
       // Generate a unique name if not provided
-      const uniqueName = name || processorSvc.generateUniqueDatabaseName(
-        'database', 
-        processedData.fileType
-      );
-      
+      const uniqueName =
+        name ||
+        processorSvc.generateUniqueDatabaseName(
+          'database',
+          processedData.fileType,
+        );
+
       // Create the database entry
       const database = await this.createDatabaseEntry(
         uniqueName,
         processedData.schema,
         processedData.seedData,
         processedData.fileType,
-        authorId
+        authorId,
       );
 
       return database;
     } catch (error) {
       console.error('Error in createDatabaseFromContent:', error);
       throw new BadRequestException(
-        `Failed to create database from content: ${error.message}`,
+        `Failed to create database from content: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }
