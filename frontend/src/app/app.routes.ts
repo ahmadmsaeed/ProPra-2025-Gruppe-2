@@ -6,6 +6,7 @@ import { authGuard } from './auth.guard';
 import { AdminDashboardComponent } from './admin-dashboard/admin-dashboard.component';
 import { TeacherDashboardComponent } from './teacher-dashboard/teacher-dashboard.component';
 import { TutorDashboardComponent } from './tutor-dashboard/tutor-dashboard.component';
+import { StudentProgressComponent } from './student-progress/student-progress.component';
 import { TeacherExercisesComponent } from './teacher-exercises/teacher-exercises.component';
 import { LandingPageComponent } from './landing-page/landing-page.component';
 import { ExerciseManagementComponent } from './exercise-management/exercise-management.component';
@@ -21,7 +22,7 @@ export const routes: Routes = [
   { path: 'admin/dashboard', component: AdminDashboardComponent, canActivate: [authGuard] },
   { path: 'student/dashboard', component: StudentDashboardComponent, canActivate: [authGuard] },
   { path: 'tutor/dashboard', component: TutorDashboardComponent, canActivate: [authGuard] },
-  // Routes for SQL learning platform
+  { path: 'student-progress', component: StudentProgressComponent, canActivate: [authGuard] }, 
   { path: 'exercises', component: StudentExercisesComponent, canActivate: [authGuard] },
   { path: 'teacher/dashboard', component: TeacherDashboardComponent, canActivate: [authGuard] },
   { path: 'teacher/exercises', component: TeacherExercisesComponent, canActivate: [authGuard] },

@@ -76,4 +76,12 @@ export class AdminService {
   unblockUser(userId: number): Observable<User> {
     return this.http.patch<User>(`${this.apiUrl}/users/${userId}/unblock`, {});
   }
+
+   getStudentProgress(studentId: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/students/${studentId}/progress`);
+  }
+
+  getAllExercises(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/exercises`);
+  }
 }
