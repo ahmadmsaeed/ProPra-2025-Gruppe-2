@@ -1,4 +1,4 @@
-<div *ngIf="authService.isTeacher() || authService.isTutor(); else accessDenied">      
+﻿<div *ngIf="authService.isTeacher() || authService.isTutor(); else accessDenied">      
   <h1>Übungen verwalten</h1>
   
   <div class="actions">
@@ -18,4 +18,4 @@
 
 <ng-template #accessDenied>
   <p style="color: red;">Zugriff verweigert. Sie müssen ein Dozent oder Tutor sein, um diese Seite anzuzeigen.</p>
-</ng-template> 
+</ng-template>
