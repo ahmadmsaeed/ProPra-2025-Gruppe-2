@@ -22,7 +22,7 @@
 
       <!-- Tutor Links -->
       <ng-container *ngIf="authService.isLoggedIn() && authService.isTutor()">
-        <a mat-button routerLink="/teacher/dashboard">
+        <a mat-button routerLink="/tutor/dashboard">
           <mat-icon>dashboard</mat-icon>
           Tutor-Dashboard
         </a>
@@ -32,7 +32,7 @@
       <ng-container *ngIf="authService.isLoggedIn() && authService.isTeacher()">
         <a mat-button routerLink="/teacher/dashboard">
           <mat-icon>dashboard</mat-icon>
-          Dozenten-Dashboard
+          Teacher-Dashboard
         </a>
         <a mat-button routerLink="/admin/dashboard">
           <mat-icon>admin_panel_settings</mat-icon>

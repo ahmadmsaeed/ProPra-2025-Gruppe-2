@@ -5,7 +5,8 @@ import { ProfileComponent } from './profile-component/profile.component';
 import { authGuard } from './auth.guard';
 import { AdminDashboardComponent } from './admin-dashboard/admin-dashboard.component';
 import { TeacherDashboardComponent } from './teacher-dashboard/teacher-dashboard.component';
-import { TeacherExercisesComponent } from './teachers-exercises/teacher-exercises.component';
+import { TutorDashboardComponent } from './tutor-dashboard/tutor-dashboard.component';
+import { TeacherExercisesComponent } from './teacher-exercises/teacher-exercises.component';
 import { LandingPageComponent } from './landing-page/landing-page.component';
 import { ExerciseManagementComponent } from './exercise-management/exercise-management.component';
 import { StudentExercisesComponent } from './student-exercises/student-exercises.component';
@@ -19,7 +20,7 @@ export const routes: Routes = [
   { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },
   { path: 'admin/dashboard', component: AdminDashboardComponent, canActivate: [authGuard] },
   { path: 'student/dashboard', component: StudentDashboardComponent, canActivate: [authGuard] },
-  
+  { path: 'tutor/dashboard', component: TutorDashboardComponent, canActivate: [authGuard] },
   // Routes for SQL learning platform
   { path: 'exercises', component: StudentExercisesComponent, canActivate: [authGuard] },
   { path: 'teacher/dashboard', component: TeacherDashboardComponent, canActivate: [authGuard] },

@@ -1,5 +1,5 @@
-﻿<div *ngIf="authService.isTeacher(); else accessDenied">
-  <h1>Teacher-Dashboard</h1>
+﻿<div *ngIf="authService.isTutor(); else accessDenied">
+  <h1>Tutor-Dashboard</h1>
   
   <div class="dashboard-container">
     <mat-card class="dashboard-card">
