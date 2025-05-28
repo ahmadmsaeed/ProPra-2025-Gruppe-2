@@ -7,7 +7,33 @@
     </div>
   </section>
 
+  <!-- Progress Section - Hinzugefügt -->
+  <section class="progress-section">
+    <mat-card class="progress-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>trending_up</mat-icon>
+          Dein Fortschritt
+        </mat-card-title>
+        <mat-card-subtitle>{{ progressPercentage }}% abgeschlossen</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="progress-container">
+          <mat-progress-bar 
+            mode="determinate" 
+            [value]="progressPercentage"
+            class="custom-progress-bar">
+          </mat-progress-bar>
+          <div class="progress-stats">
+            <span class="completed-count">{{ completedExercises }} von {{ totalExercises }} Aufgaben gelöst</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </section>
+
   <section class="content-section">
+    <!-- ...existing code... -->
     <div class="exercise-overview">
       <mat-card *ngIf="lastExercise" class="exercise-card last-exercise-card">
         <mat-card-header>
