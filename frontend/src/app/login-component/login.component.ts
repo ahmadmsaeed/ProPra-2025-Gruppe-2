@@ -26,14 +26,22 @@ export class LoginComponent {
    * Sendet die Login-Daten an das Backend.
    */
   onSubmit() {
-    this.error = '';
-    this.auth.login(this.form).subscribe({
-      next: () => {
-        this.router.navigate(['/profile']);
-      },
-      error: (err) => {
-        this.error = err.error?.message || 'Login fehlgeschlagen';
+  this.error = '';
+  this.auth.login(this.form).subscribe({
+    next: () => {
+      if (this.auth.isStudent()) {
+        this.router.navigate(['/student/dashboard']);
+      } else if (this.auth.isTeacher()) {
+        this.router.navigate(['/teacher/dashboard']); // Teacher zu Teacher Dashboard
+      } else if (this.auth.isTutor()) {
+        this.router.navigate(['/tutor/dashboard']); // Tutor zu Tutor Dashboard
+      } else {
+        this.router.navigate(['/profile']); // Fallback
       }
-    });
-  }
+    },
+    error: (err) => {
+      this.error = err.error?.message || 'Login fehlgeschlagen';
+    }
+  });
+}
 }

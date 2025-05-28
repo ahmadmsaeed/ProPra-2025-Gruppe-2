@@ -18,6 +18,7 @@ frontend/dist/
 frontend/build/
 backend/dist/
 backend/build/
+backend/prisma/migrations
 
 # ───── IDE & Editor Settings ──────────────────────
 .idea/

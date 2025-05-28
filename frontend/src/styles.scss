@@ -87,3 +87,280 @@ html, body {
   align-items: center;
   min-height: 200px;
 }
+
+/* Light Theme Variablen */
+:root {
+  --primary-color: #2196f3;
+  --accent-color: #3f51b5;
+  --background-color: #ffffff;
+  --surface-color: #f5f5f5;
+  --text-color: #333333;
+  --text-secondary-color: #666666;
+  --text-hint-color: #757575;
+  --border-color: #e0e0e0;
+  --error-color: #f44336;
+  --success-color: #4caf50;
+  --warning-color: #ff9800;
+  --divider-color: #f0f0f0;
+  --card-background: #ffffff;
+  --badge-background-student: #e3f2fd;
+  --badge-color-student: #1565c0;
+  --badge-background-tutor: #e8f5e9;
+  --badge-color-tutor: #2e7d32;
+  --badge-background-teacher: #fce4ec;
+  --badge-color-teacher: #c2185b;
+}
+
+/* Dark Theme Variablen */
+.dark-theme {
+  --primary-color: #90caf9;
+  --accent-color: #7986cb;
+  --background-color: #121212;
+  --surface-color: #1e1e1e;
+  --text-color: #ffffff;
+  --text-secondary-color: #b0b0b0;
+  --text-hint-color: #9e9e9e;
+  --border-color: #424242;
+  --error-color: #ef5350;
+  --success-color: #81c784;
+  --warning-color: #ffb74d;
+  --divider-color: #2d2d2d;
+  --card-background: #1e1e1e;
+  --badge-background-student: #1a3f5f;
+  --badge-color-student: #90caf9;
+  --badge-background-tutor: #1b3724;
+  --badge-color-tutor: #81c784;
+  --badge-background-teacher: #4a1525;
+  --badge-color-teacher: #f48fb1;
+
+  /* Dark Theme Button Overrides */
+  .mat-mdc-raised-button.mat-primary {
+    background-color: #2196f3 !important; /* Helleres, sichtbareres Blau */
+    color: white !important;
+  }
+
+  .mat-mdc-raised-button.mat-accent {
+    background-color: #7986cb !important;
+    color: white !important;
+  }
+
+  .mat-mdc-stroked-button {
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    color: white !important;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.05) !important;
+    }
+  }
+
+  .mat-mdc-button {
+    color: var(--text-color) !important;
+
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.05) !important;
+    }
+  }
+}
+
+/* Globale Styles */
+body {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Material Design Anpassungen */
+.mat-mdc-card {
+  background-color: var(--card-background) !important;
+  color: var(--text-color) !important;
+
+  .mat-mdc-card-title {
+    color: var(--text-color) !important;
+  }
+
+  .mat-mdc-card-subtitle {
+    color: var(--text-secondary-color) !important;
+  }
+
+  .mat-mdc-card-content {
+    color: var(--text-color) !important;
+  }
+}
+
+.mat-mdc-table {
+  background-color: var(--surface-color) !important;
+}
+
+.mat-mdc-row, .mat-mdc-header-row {
+  background-color: var(--surface-color) !important;
+}
+
+.mat-mdc-cell, .mat-mdc-header-cell {
+  color: var(--text-color) !important;
+}
+
+/* Input Field Anpassungen */
+.mat-mdc-form-field {
+  width: 100%;
+
+  .mdc-text-field {
+    background-color: var(--surface-color) !important;
+  }
+
+  .mdc-text-field--filled:not(.mdc-text-field--disabled) {
+    background-color: var(--surface-color) !important;
+  }
+
+  .mdc-text-field:not(.mdc-text-field--disabled) .mdc-floating-label {
+    color: var(--text-secondary-color) !important;
+  }
+
+  .mdc-text-field:not(.mdc-text-field--disabled) .mdc-text-field__input {
+    color: var(--text-color) !important;
+  }
+
+  .mdc-text-field--filled:not(.mdc-text-field--disabled) .mdc-line-ripple::before {
+    border-bottom-color: var(--border-color) !important;
+  }
+
+  .mdc-text-field--filled:not(.mdc-text-field--disabled):hover .mdc-line-ripple::before {
+    border-bottom-color: var(--primary-color) !important;
+  }
+}
+
+/* Text Selection Farben */
+::selection {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+/* Dialog Anpassungen */
+.mat-mdc-dialog-container {
+  .mdc-dialog__surface {
+    background-color: var(--card-background) !important;
+    color: var(--text-color) !important;
+  }
+
+  .mat-mdc-dialog-title {
+    color: var(--text-color) !important;
+  }
+
+  h2[mat-dialog-title] {
+    color: var(--text-color) !important;
+  }
+}
+
+/* List Anpassungen */
+.mat-mdc-list-item {
+  color: var(--text-color) !important;
+}
+
+/* Menu Anpassungen */
+.mat-mdc-menu-panel {
+  background-color: var(--card-background) !important;
+}
+
+.mat-mdc-menu-item {
+  color: var(--text-color) !important;
+
+  &:hover {
+    background-color: var(--surface-color) !important;
+  }
+}
+
+/* Select Anpassungen */
+.mat-mdc-select-panel {
+  background-color: var(--card-background) !important;
+}
+
+.mat-mdc-option {
+  color: var(--text-color) !important;
+}
+
+.mat-mdc-select-value {
+  color: var(--text-color) !important;
+}
+
+.mat-mdc-select-arrow {
+  color: var(--text-color) !important;
+}
+
+.mat-mdc-form-field {
+  .mdc-floating-label {
+    color: var(--text-secondary-color) !important;
+  }
+
+  &.mat-focused {
+    .mdc-floating-label {
+      color: var(--primary-color) !important;
+    }
+  }
+
+  .mdc-text-field--filled:not(.mdc-text-field--disabled) {
+    background-color: var(--surface-color) !important;
+
+    &:hover {
+      background-color: var(--surface-color) !important;
+    }
+  }
+
+  .mat-mdc-select-value-text {
+    color: var(--text-color) !important;
+  }
+}
+
+/* Snackbar Styles */
+.mat-mdc-snack-bar-container {
+  &.error-snackbar {
+    --mdc-snackbar-container-color: var(--error-color);
+    --mat-snackbar-button-color: white;
+    --mdc-snackbar-supporting-text-color: white;
+  }
+  
+  &.success-snackbar {
+    --mdc-snackbar-container-color: var(--success-color);
+    --mat-snackbar-button-color: white;
+    --mdc-snackbar-supporting-text-color: white;
+  }
+  
+  &.warning-snackbar {
+    --mdc-snackbar-container-color: var(--warning-color);
+    --mat-snackbar-button-color: white;
+    --mdc-snackbar-supporting-text-color: white;
+  }
+}
+
+/* Button Styles */
+.mat-mdc-raised-button.mat-primary {
+  background-color: var(--primary-color) !important;
+  color: white !important;
+}
+
+.mat-mdc-raised-button.mat-accent {
+  background-color: var(--accent-color) !important;
+  color: white !important;
+}
+
+.mat-mdc-stroked-button {
+  border-color: var(--border-color) !important;
+  color: var(--text-color) !important;
+}
+
+.dark-theme {
+  .mat-mdc-select-panel {
+    background-color: var(--card-background) !important;
+    border: 1px solid var(--border-color);
+  }
+
+  .mat-mdc-option {
+    &:hover:not(.mat-mdc-option-disabled) {
+      background-color: rgba(255, 255, 255, 0.05) !important;
+    }
+
+    &.mat-mdc-option-active {
+      background-color: rgba(33, 150, 243, 0.15) !important;
+    }
+  }
+}

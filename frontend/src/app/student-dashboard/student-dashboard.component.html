@@ -1,0 +1,98 @@
+<div class="student-dashboard-container">
+  <section class="hero-section">
+    <h1>Willkommen zurück, {{ (studentName$ | async) }}!</h1>
+    <p class="subtitle">Setze deine SQL-Lernreise fort und meistere neue Herausforderungen.</p>
+    <div class="hero-image-placeholder">
+      <mat-icon>auto_stories</mat-icon>
+    </div>
+  </section>
+
+  <!-- Progress Section - Hinzugefügt -->
+  <section class="progress-section">
+    <mat-card class="progress-card">
+      <mat-card-header>
+        <mat-card-title>
+          <mat-icon>trending_up</mat-icon>
+          Dein Fortschritt
+        </mat-card-title>
+        <mat-card-subtitle>{{ progressPercentage }}% abgeschlossen</mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="progress-container">
+          <mat-progress-bar 
+            mode="determinate" 
+            [value]="progressPercentage"
+            class="custom-progress-bar">
+          </mat-progress-bar>
+          <div class="progress-stats">
+            <span class="completed-count">{{ completedExercises }} von {{ totalExercises }} Aufgaben gelöst</span>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+  </section>
+
+  <section class="content-section">
+    <!-- ...existing code... -->
+    <div class="exercise-overview">
+      <mat-card *ngIf="lastExercise" class="exercise-card last-exercise-card">
+        <mat-card-header>
+          <mat-card-title>Zuletzt bearbeitet</mat-card-title>
+          <mat-card-subtitle>{{ lastExercise.title }}</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p>{{ lastExercise.description | slice:0:120 }}{{ lastExercise.description.length > 120 ? '...' : '' }}</p>
+        </mat-card-content>
+        <mat-card-actions>
+          <button mat-raised-button color="primary" (click)="navigateToExercise(lastExercise.id)">
+            <mat-icon>play_arrow</mat-icon> Weiter üben
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <mat-card *ngIf="nextExercise" class="exercise-card next-exercise-card">
+        <mat-card-header>
+          <mat-card-title>Nächste Aufgabe</mat-card-title>
+          <mat-card-subtitle>{{ nextExercise.title }}</mat-card-subtitle>
+        </mat-card-header>
+        <mat-card-content>
+          <p>{{ nextExercise.description | slice:0:120 }}{{ nextExercise.description.length > 120 ? '...' : '' }}</p>
+        </mat-card-content>
+        <mat-card-actions>
+          <button mat-raised-button color="accent" (click)="navigateToExercise(nextExercise.id)">
+            <mat-icon>skip_next</mat-icon> Aufgabe starten
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+      <mat-card *ngIf="!lastExercise && !nextExercise && (mockExercises && mockExercises.length > 0)" class="exercise-card no-exercise-card">
+         <mat-card-header>
+          <mat-card-title>Bereit für den Start?</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Es sieht so aus, als hättest du noch keine Übungen begonnen. Starte mit der ersten Aufgabe!</p>
+        </mat-card-content>
+        <mat-card-actions>
+          <button mat-raised-button color="primary" (click)="navigateToExercise(mockExercises[0].id)">
+            <mat-icon>list_alt</mat-icon> Erste Aufgabe starten
+          </button>
+        </mat-card-actions>
+      </mat-card>
+
+       <mat-card *ngIf="mockExercises && mockExercises.length === 0" class="exercise-card no-exercise-card">
+         <mat-card-header>
+          <mat-card-title>Keine Übungen verfügbar</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Momentan sind keine Übungen für dich hinterlegt. Bitte schaue später wieder vorbei.</p>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <div class="actions-panel">
+       <button mat-stroked-button routerLink="/exercises">
+        <mat-icon>view_list</mat-icon> Zur Übungsübersicht
+      </button>
+    </div>
+  </section>
+</div>

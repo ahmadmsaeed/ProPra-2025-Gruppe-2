@@ -10,15 +10,19 @@
     <div class="nav-links">
       <!-- Student Links -->
       <ng-container *ngIf="authService.isLoggedIn() && authService.isStudent()">
-        <a mat-button routerLink="/exercises">
+        <a mat-button routerLink="/student/dashboard"> <!-- Geändert von /exercises -->
+          <mat-icon>dashboard</mat-icon> <!-- Optional: Icon ändern -->
+          Mein Dashboard
+        </a>
+        <a mat-button routerLink="/exercises"> <!-- Zusätzlicher Link zur vollen Übungsliste -->
           <mat-icon>code</mat-icon>
-          SQL-Übungen
+          Alle SQL-Übungen
         </a>
       </ng-container>
 
       <!-- Tutor Links -->
       <ng-container *ngIf="authService.isLoggedIn() && authService.isTutor()">
-        <a mat-button routerLink="/teacher/dashboard">
+        <a mat-button routerLink="/tutor/dashboard">
           <mat-icon>dashboard</mat-icon>
           Tutor-Dashboard
         </a>
@@ -28,7 +32,7 @@
       <ng-container *ngIf="authService.isLoggedIn() && authService.isTeacher()">
         <a mat-button routerLink="/teacher/dashboard">
           <mat-icon>dashboard</mat-icon>
-          Dozenten-Dashboard
+          Teacher-Dashboard
         </a>
         <a mat-button routerLink="/admin/dashboard">
           <mat-icon>admin_panel_settings</mat-icon>
@@ -68,6 +72,11 @@
         </mat-menu>
       </ng-container>
     </div>
+
+    <!-- Theme toggle -->
+    <button mat-icon-button (click)="toggleTheme()" class="theme-toggle">
+      <mat-icon>dark_mode</mat-icon>
+    </button>
   </div>
 </mat-toolbar>
 
