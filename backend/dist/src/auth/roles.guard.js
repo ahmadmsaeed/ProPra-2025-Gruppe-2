@@ -23,8 +23,9 @@ let RolesGuard = class RolesGuard {
         if (!requiredRoles || requiredRoles.length === 0) {
             return true;
         }
-        const { user } = context.switchToHttp().getRequest();
-        if (!user || !requiredRoles.includes(user.role)) {
+        const request = context.switchToHttp().getRequest();
+        const user = request.user;
+        if (!user || !user.role || !requiredRoles.includes(user.role)) {
             throw new common_1.ForbiddenException('Keine Berechtigung für diese Aktion');
         }
         return true;

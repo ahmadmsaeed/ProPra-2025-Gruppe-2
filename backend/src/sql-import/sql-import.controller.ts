@@ -21,6 +21,13 @@ import { Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedRequest } from '../types/auth.types';
 
+interface DatabaseCreateData {
+  name: string;
+  schema?: string;
+  seedData?: string;
+  authorId?: number;
+}
+
 interface DatabaseUpdateData {
   name?: string;
   schema?: string;
@@ -71,7 +78,7 @@ export class SqlImportController {
 
   @Post('databases')
   @Roles(Role.TEACHER)
-  async createDatabase(@Body() data: DatabaseUpdateData) {
+  async createDatabase(@Body() data: DatabaseCreateData) {
     return this.sqlImportService.create(data);
   }
 

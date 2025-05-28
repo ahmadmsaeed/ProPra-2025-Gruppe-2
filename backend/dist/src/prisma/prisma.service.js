@@ -38,16 +38,16 @@ let PrismaService = PrismaService_1 = class PrismaService extends client_1.Prism
             throw error;
         }
     }
-    async enableShutdownHooks(app) {
-        process.on('beforeExit', async () => {
+    enableShutdownHooks(app) {
+        process.on('beforeExit', () => {
             this.logger.log('Process beforeExit event triggered - closing database connections');
-            await app.close();
+            void app.close();
         });
         ['SIGINT', 'SIGTERM', 'SIGUSR2'].forEach((signal) => {
-            process.once(signal, async () => {
+            process.once(signal, () => {
                 this.logger.log(`${signal} signal received - closing database connections`);
-                await this.$disconnect();
-                await app.close();
+                void this.$disconnect();
+                void app.close();
                 process.exit(0);
             });
         });
@@ -96,8 +96,12 @@ let PrismaService = PrismaService_1 = class PrismaService extends client_1.Prism
         ];
         if (!error)
             return false;
-        const errorString = error.toString().toLowerCase();
-        return transientErrors.some(type => errorString.includes(type));
+        const errorString = error instanceof Error
+            ? error.message
+            : typeof error === 'string'
+                ? error.toLowerCase()
+                : 'unknown error';
+        return transientErrors.some((type) => errorString.includes(type));
     }
 };
 exports.PrismaService = PrismaService;

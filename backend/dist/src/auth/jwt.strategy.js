@@ -21,13 +21,23 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
             secretOrKey: process.env.JWT_SECRET || 'supersecret',
         });
     }
-    async validate(payload) {
-        return {
-            sub: payload.sub,
-            email: payload.email,
-            name: payload.name,
-            role: payload.role,
-        };
+    validate(payload) {
+        try {
+            const userId = payload.sub;
+            const userEmail = payload.email;
+            const userName = payload.name;
+            const userRole = payload.role;
+            return {
+                sub: userId,
+                email: userEmail,
+                name: userName,
+                role: userRole,
+            };
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            throw new Error(`JWT validation failed: ${errorMessage}`);
+        }
     }
 };
 exports.JwtStrategy = JwtStrategy;

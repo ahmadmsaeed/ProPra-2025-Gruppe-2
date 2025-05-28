@@ -23,6 +23,16 @@ import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
 import { AuthenticatedRequest } from '../types/auth.types';
 
+interface ExerciseCreateData {
+  title: string;
+  description: string;
+  initialQuery?: string;
+  solutionQuery: string;
+  databaseSchemaId?: number;
+  authorId: number;
+  sqlFile?: Express.Multer.File;
+}
+
 @Controller('exercises')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ExerciseController {
@@ -64,7 +74,7 @@ export class ExerciseController {
       ...exerciseData,
       authorId: userId,
       sqlFile,
-    });
+    } as ExerciseCreateData);
   }
 
   /**
