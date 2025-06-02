@@ -46,7 +46,7 @@ export class ExerciseManagementComponent implements OnInit {
   }
 
   canEdit(exercise: Exercise): boolean {
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    const user = this.authService.getCurrentUser();
     return user?.role === 'TEACHER' || 
            (user?.role === 'TUTOR' && user.id === exercise.authorId);
   }

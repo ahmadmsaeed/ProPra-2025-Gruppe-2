@@ -164,4 +164,45 @@ export class AdminService {
       select: this.userSelect,
     });
   }
+
+  async getStudentProgress(studentId: number) {
+    // Verify student exists
+    const student = await this.prisma.user.findUnique({
+      where: { id: studentId, role: Role.STUDENT },
+    });
+
+    if (!student) {
+      throw new NotFoundException(`Student with ID ${studentId} not found`);
+    }
+
+    // Get total number of exercises
+    const totalExercises = await this.prisma.exercise.count();
+
+    // Get student's submissions and completed exercises
+    const submissions = await this.prisma.submission.findMany({
+      where: { studentId: studentId },
+      include: { exercise: true },
+    });
+
+    // Count unique completed exercises (exercises with at least one submission)
+    const completedExerciseIds = new Set(submissions.map(s => s.exerciseId));
+    const completedExercises = completedExerciseIds.size;
+
+    // Calculate progress percentage
+    const progressPercentage = totalExercises > 0 
+      ? Math.round((completedExercises / totalExercises) * 100) 
+      : 0;
+
+    // Get last activity (most recent submission)
+    const lastSubmission = await this.prisma.submission.findFirst({
+      where: { studentId: studentId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return {
+      completedExercises,
+      progressPercentage,
+      lastActivity: lastSubmission?.createdAt || null,
+    };
+  }
 }

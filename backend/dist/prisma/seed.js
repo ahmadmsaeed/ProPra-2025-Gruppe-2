@@ -87,7 +87,96 @@ async function seedDatabasesAndExercises(teacherId) {
         else {
             console.log(`Exercise already exists: ${existingExercise.title}`);
         }
-        return personenDb;
+        let toysDb = await prisma.database.findUnique({
+            where: { name: 'ToysDB' }
+        });
+        if (!toysDb) {
+            await prisma.$executeRaw `
+        INSERT INTO "Database" (name, schema, "seedData", "authorId", "createdAt", "updatedAt")
+        VALUES (
+          'ToysDB',
+          'CREATE TABLE Toys (
+            toyId INTEGER PRIMARY KEY,
+            toyName VARCHAR(100) NOT NULL,
+            toyType VARCHAR(50) NOT NULL
+          );',
+          'INSERT INTO Toys (toyId, toyName, toyType) VALUES
+          (1, ''Lego City Set'', ''Building Blocks''),
+          (2, ''Barbie Dreamhouse'', ''Doll''),
+          (3, ''Hot Wheels Track'', ''Car''),
+          (4, ''Teddy Bear'', ''Stuffed Animal''),
+          (5, ''Monopoly Board Game'', ''Board Game''),
+          (6, ''Nintendo Switch'', ''Video Game''),
+          (7, ''Wooden Puzzle'', ''Puzzle''),
+          (8, ''Remote Control Helicopter'', ''RC Vehicle'');',
+          ${teacherId},
+          NOW(),
+          NOW()
+        )
+      `;
+            toysDb = await prisma.database.findUnique({
+                where: { name: 'ToysDB' }
+            });
+        }
+        else {
+            await prisma.$executeRaw `
+        UPDATE "Database" 
+        SET "schema" = 'CREATE TABLE Toys (
+          toyId INTEGER PRIMARY KEY,
+          toyName VARCHAR(100) NOT NULL,
+          toyType VARCHAR(50) NOT NULL
+        );',
+        "seedData" = 'INSERT INTO Toys (toyId, toyName, toyType) VALUES
+        (1, ''Lego City Set'', ''Building Blocks''),
+        (2, ''Barbie Dreamhouse'', ''Doll''),
+        (3, ''Hot Wheels Track'', ''Car''),
+        (4, ''Teddy Bear'', ''Stuffed Animal''),
+        (5, ''Monopoly Board Game'', ''Board Game''),
+        (6, ''Nintendo Switch'', ''Video Game''),
+        (7, ''Wooden Puzzle'', ''Puzzle''),
+        (8, ''Remote Control Helicopter'', ''RC Vehicle'');',
+        "updatedAt" = NOW()
+        WHERE id = ${toysDb.id}
+      `;
+            toysDb = await prisma.database.findUnique({
+                where: { id: toysDb.id }
+            });
+        }
+        if (!toysDb) {
+            throw new Error('Failed to create or find ToysDB');
+        }
+        console.log(`Created database: ${toysDb.name}`);
+        const existingToysExercise = await prisma.exercise.findFirst({
+            where: {
+                title: 'Alle Spielzeuge anzeigen',
+                databaseSchemaId: toysDb.id
+            }
+        });
+        if (!existingToysExercise) {
+            const toysExercise = await prisma.exercise.create({
+                data: {
+                    title: 'Alle Spielzeuge anzeigen',
+                    description: 'Schreibe eine SQL-Abfrage, die alle Spielzeuge aus der Tabelle "Toys" auswählt. Zeige alle Spalten an.',
+                    initialQuery: 'SELECT ',
+                    solutionQuery: 'SELECT * FROM Toys',
+                    database: {
+                        connect: {
+                            id: toysDb.id
+                        }
+                    },
+                    author: {
+                        connect: {
+                            id: teacherId
+                        }
+                    }
+                }
+            });
+            console.log(`Created exercise: ${toysExercise.title}`);
+        }
+        else {
+            console.log(`Exercise already exists: ${existingToysExercise.title}`);
+        }
+        return { personenDb, toysDb };
     }
     catch (error) {
         console.error('Error creating database and exercise:', error);
@@ -124,6 +213,38 @@ async function createPersonenTable(personenDbId) {
     }
     catch (error) {
         console.error('Error creating personen table:', error);
+    }
+}
+async function createToysTable(toysDbId) {
+    console.log('Creating toys table...');
+    try {
+        const toysDb = await prisma.database.findUnique({
+            where: {
+                id: toysDbId
+            }
+        });
+        if (!toysDb) {
+            console.error('ToysDB not found in Database table');
+            return;
+        }
+        console.log('Found ToysDB, executing schema...');
+        try {
+            await prisma.$executeRawUnsafe(toysDb.schema);
+            console.log('Toys table schema created successfully');
+        }
+        catch (err) {
+            console.log('Toys table might already exist, continuing with seed data');
+        }
+        try {
+            await prisma.$executeRawUnsafe(toysDb.seedData);
+            console.log('Toys table data inserted successfully');
+        }
+        catch (err) {
+            console.log('Toys seed data might already exist, continuing');
+        }
+    }
+    catch (error) {
+        console.error('Error creating toys table:', error);
     }
 }
 async function main() {
@@ -189,8 +310,9 @@ async function main() {
             },
         });
         console.log(`Student created: ${student3.email}`);
-        const personenDb = await seedDatabasesAndExercises(teacher.id);
-        await createPersonenTable(personenDb.id);
+        const databases = await seedDatabasesAndExercises(teacher.id);
+        await createPersonenTable(databases.personenDb.id);
+        await createToysTable(databases.toysDb.id);
         console.log(`Seeding completed.`);
     }
     catch (error) {

@@ -4,16 +4,30 @@ import { Router, RouterModule } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar'; // Hinzugefügt
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService, User } from '../services/auth.service';
-import { Observable, of } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { ExerciseService } from '../services/exercise.service';
+import { SubmissionService } from '../services/submission.service';
+import { AdminService } from '../services/admin.service';
+import { Exercise } from '../models/exercise.model';
+import { Submission } from '../models/submission.model';
+import { Observable, of, combineLatest, EMPTY } from 'rxjs';
+import { map, catchError, switchMap, startWith } from 'rxjs/operators';
 
 interface ExerciseInfo {
   id: number;
   title: string;
   description: string;
-  completed?: boolean; // Hinzugefügt
+  completed?: boolean;
+}
+
+interface DashboardData {
+  exercises: Exercise[];
+  submissions: Submission[];
+  progress: any;
+  loading: boolean;
+  error: string | null;
 }
 
 @Component({
@@ -25,7 +39,8 @@ interface ExerciseInfo {
     MatCardModule,
     MatButtonModule,
     MatIconModule,
-    MatProgressBarModule, // Hinzugefügt
+    MatProgressBarModule,
+    MatProgressSpinnerModule,
     SlicePipe
   ],
   templateUrl: './student-dashboard.component.html',
@@ -34,57 +49,126 @@ interface ExerciseInfo {
 })
 export class StudentDashboardComponent implements OnInit {
   private authService = inject(AuthService);
+  private exerciseService = inject(ExerciseService);
+  private submissionService = inject(SubmissionService);
+  private adminService = inject(AdminService);
   private router = inject(Router);
 
   studentName$: Observable<string> = this.authService.me().pipe(
     map(user => (user && user.name ? user.name.split(' ')[0] : 'Student'))
   );
 
-  lastExercise: ExerciseInfo | null = null;
-  nextExercise: ExerciseInfo | null = null;
-  
-  // Progress Bar Properties - Hinzugefügt
-  totalExercises = 0;
-  completedExercises = 0;
-  progressPercentage = 0;
+  // Dashboard data observables
+  dashboardData$: Observable<DashboardData> = this.authService.currentUser$.pipe(
+    switchMap(user => {
+      if (!user) {
+        return of({
+          exercises: [],
+          submissions: [],
+          progress: null,
+          loading: false,
+          error: 'User not authenticated'
+        });
+      }
 
-  // Mock-Daten erweitert
-  mockExercises: ExerciseInfo[] = [
-    { id: 1, title: 'Einführung in SELECT', description: 'Lerne die Grundlagen des SELECT-Statements und wie man Daten aus einer einzelnen Tabelle abfragt.', completed: true },
-    { id: 2, title: 'Filtern mit WHERE', description: 'Vertiefe dein Wissen, indem du lernst, Abfrageergebnisse mit der WHERE-Klausel zu filtern.', completed: true },
-    { id: 3, title: 'Sortieren mit ORDER BY', description: 'Erfahre, wie du deine Ergebnisse mit ORDER BY sortieren kannst.', completed: false },
-    { id: 4, title: 'JOIN Operationen', description: 'Kombiniere Daten aus mehreren Tabellen mit verschiedenen JOIN-Typen.', completed: false },
-  ];
+      return combineLatest([
+        this.exerciseService.getExercises().pipe(catchError(() => of([]))),
+        this.submissionService.getMySubmissions().pipe(catchError(() => of([])))
+      ]).pipe(
+        map(([exercises, submissions]) => {
+          // Calculate progress locally instead of calling admin service
+          const progress = this.calculateProgressFromSubmissions(exercises, submissions);
+          
+          return {
+            exercises,
+            submissions,
+            progress,
+            loading: false,
+            error: null
+          };
+        }),
+        startWith({
+          exercises: [],
+          submissions: [],
+          progress: null,
+          loading: true,
+          error: null
+        }),
+        catchError(error => of({
+          exercises: [],
+          submissions: [],
+          progress: null,
+          loading: false,
+          error: 'Failed to load dashboard data'
+        }))
+      );
+    })
+  );
+
+  // Derived observables for specific dashboard components
+  exercisesWithCompletion$ = this.dashboardData$.pipe(
+    map(data => {
+      if (data.loading || data.error) return [];
+      
+      const completedExerciseIds = new Set(
+        data.submissions
+          .filter(sub => sub.isCorrect)
+          .map(sub => sub.exerciseId)
+      );
+
+      return data.exercises.map(exercise => ({
+        ...exercise,
+        completed: completedExerciseIds.has(exercise.id)
+      }));
+    })
+  );
+
+  lastExercise$ = this.exercisesWithCompletion$.pipe(
+    map(exercises => {
+      const completed = exercises.filter(ex => ex.completed);
+      return completed.length > 0 ? completed[completed.length - 1] : null;
+    })
+  );
+
+  nextExercise$ = this.exercisesWithCompletion$.pipe(
+    map(exercises => {
+      const nextIncomplete = exercises.find(ex => !ex.completed);
+      return nextIncomplete || null;
+    })
+  );
+
+  progressData$ = this.dashboardData$.pipe(
+    map(data => data.progress),
+    startWith(null)
+  );
 
   ngOnInit(): void {
-    this.fetchExerciseProgress();
-    this.calculateProgress(); // Hinzugefügt
-  }
-
-  fetchExerciseProgress(): void {
-    const lastCompletedId = 2; // Simuliert: Student hat 2 Übungen abgeschlossen
-    const foundLast = this.mockExercises.find(ex => ex.id === lastCompletedId);
-
-    if (foundLast) {
-      this.lastExercise = foundLast;
-      const nextId = lastCompletedId + 1;
-      const foundNext = this.mockExercises.find(ex => ex.id === nextId);
-      this.nextExercise = foundNext || null;
-    } else {
-      this.lastExercise = null;
-      this.nextExercise = this.mockExercises.length > 0 ? this.mockExercises[0] : null;
-    }
-  }
-
-  // Neue Methode für Progress Berechnung
-  calculateProgress(): void {
-    this.totalExercises = this.mockExercises.length;
-    this.completedExercises = this.mockExercises.filter(exercise => exercise.completed).length;
-    this.progressPercentage = this.totalExercises > 0 ? 
-      Math.round((this.completedExercises / this.totalExercises) * 100) : 0;
+    // Data loading is handled by observables
   }
 
   navigateToExercise(exerciseId: number): void {
     this.router.navigate(['/exercises'], { queryParams: { exerciseId: exerciseId } });
+  }
+
+  private calculateProgressFromSubmissions(exercises: Exercise[], submissions: Submission[]): any {
+    const totalExercises = exercises.length;
+    const completedExercises = exercises.filter(exercise => 
+      submissions.some(submission => 
+        submission.exerciseId === exercise.id && submission.isCorrect
+      )
+    ).length;
+    
+    const progressPercentage = totalExercises > 0 ? 
+      Math.round((completedExercises / totalExercises) * 100) : 0;
+
+    return {
+      totalExercises,
+      completedExercises,
+      progressPercentage
+    };
+  }
+
+  reloadPage(): void {
+    window.location.reload();
   }
 }

@@ -97,6 +97,7 @@ export class ExerciseController {
     return this.exerciseService.update(+id, {
       ...exerciseData,
       authorId: userId,
+      userRole: req.user.role,
       sqlFile,
     });
   }

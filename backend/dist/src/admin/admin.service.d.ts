@@ -24,4 +24,9 @@ export declare class AdminService {
     deleteUser(userId: number): Promise<Omit<User, 'password'>>;
     blockUser(userId: number): Promise<Omit<User, 'password'>>;
     unblockUser(userId: number): Promise<Omit<User, 'password'>>;
+    getStudentProgress(studentId: number): Promise<{
+        completedExercises: number;
+        progressPercentage: number;
+        lastActivity: Date | null;
+    }>;
 }

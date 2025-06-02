@@ -13,6 +13,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { AdminService, CreateUserDto, UpdateUserDto } from './admin.service';
+import { ExerciseService } from '../exercise/exercise.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -28,9 +29,12 @@ interface RequestWithUser {
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.TEACHER)
+@Roles(Role.TEACHER, Role.TUTOR)
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(
+    private readonly adminService: AdminService,
+    private readonly exerciseService: ExerciseService,
+  ) {}
 
   @Get('teachers')
   async listTeachers() {
@@ -45,6 +49,16 @@ export class AdminController {
   @Get('students')
   async listStudents() {
     return this.adminService.listStudents();
+  }
+
+  @Get('exercises')
+  async listExercises() {
+    return this.exerciseService.findAll();
+  }
+
+  @Get('students/:id/progress')
+  async getStudentProgress(@Param('id', ParseIntPipe) studentId: number) {
+    return this.adminService.getStudentProgress(studentId);
   }
 
   @Post('users')

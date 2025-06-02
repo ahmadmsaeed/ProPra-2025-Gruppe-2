@@ -31,6 +31,7 @@ interface ExerciseUpdateData {
   solutionQuery?: string;
   databaseSchemaId?: number;
   authorId?: number;
+  userRole?: string;
   sqlFile?: Express.Multer.File;
 }
 
@@ -200,7 +201,8 @@ export class ExerciseService implements IExerciseService {
     const exercise = await this.findOne(id);
 
     // Check if user has permission to update
-    if (data.authorId !== exercise.authorId) {
+    // Teachers can update any exercise, tutors can only update their own
+    if (data.authorId !== exercise.authorId && data.userRole !== 'TEACHER') {
       throw new ForbiddenException('You can only update your own exercises');
     }
 

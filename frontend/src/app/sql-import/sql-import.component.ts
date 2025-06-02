@@ -433,8 +433,8 @@ export class SqlImportComponent implements OnInit {
   }
 
   canEdit(db: any): boolean {
-    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    const user = this.authService.getCurrentUser();
     return this.authService.isTeacher() || 
-           (this.authService.isTutor() && user?.sub === db.authorId);
+           (this.authService.isTutor() && user?.id === db.authorId);
   }
 }
