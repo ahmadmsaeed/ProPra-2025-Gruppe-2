@@ -1,40 +1,29 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Client } from 'pg';
-import * as Docker from 'dockerode';
-import {
-  DatabaseContainerInfo,
-  ContainerConnectionConfig,
-} from './dto/database-container.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { DatabaseContainerInfo } from './dto/database-container.dto';
+import { ContainerManagementService } from './container-management.service';
+import { ContainerConnectionService } from './container-connection.service';
+import { ContainerCleanupService } from './container-cleanup.service';
 
-// Add interfaces for PostgreSQL types
-interface PostgresResult {
-  rows: unknown[];
-  rowCount: number;
-  command: string;
-  oid: number;
-  fields: unknown[];
-}
-
-// Postgres client configuration interface
-interface PostgresClientConfig {
-  host: string;
-  port: number;
-  database: string;
-  user: string;
-  password: string;
-}
-
+/**
+ * Main service for database container operations
+ * Coordinates between management, connection, and cleanup services
+ */
 @Injectable()
 export class DatabaseContainerService {
   private readonly logger = new Logger(DatabaseContainerService.name);
-  private readonly docker: Docker;
   private readonly activeContainers = new Map<string, DatabaseContainerInfo>();
-  private readonly portRange = { min: 5500, max: 5600 }; // Port range for temporary containers
+  private readonly creationLocks = new Map<
+    string,
+    Promise<DatabaseContainerInfo>
+  >();
 
-  constructor(private prisma: PrismaService) {
-    this.docker = new Docker();
-  }
+  constructor(
+    private prisma: PrismaService,
+    private containerManagement: ContainerManagementService,
+    private containerConnection: ContainerConnectionService,
+    private containerCleanup: ContainerCleanupService,
+  ) {}
 
   /**
    * Create a temporary database container for a student
@@ -44,49 +33,84 @@ export class DatabaseContainerService {
     originalDatabaseId: number,
   ): Promise<DatabaseContainerInfo> {
     const containerKey = `${studentId}-${originalDatabaseId}`;
+
     // Check if container already exists
     if (this.activeContainers.has(containerKey)) {
       const existing = this.activeContainers.get(containerKey);
       if (existing && existing.status === 'ready') {
-        return existing;
+        try {
+          await this.containerConnection.verifyContainerConnection(existing);
+          return existing;
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          this.logger.warn(
+            `Existing container failed verification, recreating: ${errorMessage}`,
+          );
+          await this.cleanupContainer(
+            existing.studentId,
+            existing.originalDatabaseId,
+          );
+        }
       }
     }
 
+    // Check if there's already a creation in progress
+    if (this.creationLocks.has(containerKey)) {
+      this.logger.log(
+        `Container creation already in progress for ${containerKey}, waiting...`,
+      );
+      return await this.creationLocks.get(containerKey)!;
+    }
+
+    // Create the container creation promise and store it as a lock
+    const creationPromise = this.createContainerInternal(
+      studentId,
+      originalDatabaseId,
+      containerKey,
+    );
+    this.creationLocks.set(containerKey, creationPromise);
+
     try {
-      const port = await this.findAvailablePort();
-      const containerName = `temp-db-${studentId}-${originalDatabaseId}-${Date.now()}`;
+      const result = await creationPromise;
+      return result;
+    } finally {
+      // Always remove the lock when done (success or failure)
+      this.creationLocks.delete(containerKey);
+    }
+  }
+
+  /**
+   * Internal method to actually create the container
+   */
+  private async createContainerInternal(
+    studentId: number,
+    originalDatabaseId: number,
+    containerKey: string,
+  ): Promise<DatabaseContainerInfo> {
+    const containerName = `temp-db-${studentId}-${originalDatabaseId}-${Date.now()}`;
+    let port: number | undefined;
+
+    try {
+      port = await this.containerManagement.reserveAvailablePort();
 
       this.logger.log(
         `Creating temporary container ${containerName} on port ${port}`,
       );
 
       // Create container
-      const container = await this.docker.createContainer({
-        Image: 'postgres:15',
-        name: containerName,
-        Env: [
-          'POSTGRES_USER=postgres',
-          'POSTGRES_PASSWORD=temppass',
-          'POSTGRES_DB=tempdb',
-        ],
-        HostConfig: {
-          PortBindings: {
-            '5432/tcp': [{ HostPort: port.toString() }],
-          },
-          AutoRemove: true, // Auto-remove when stopped
-        },
-        ExposedPorts: {
-          '5432/tcp': {},
-        },
-      });
+      const container = await this.containerManagement.createContainer(
+        containerName,
+        port,
+      );
 
       // Start container
-      await container.start();
+      await this.containerManagement.startContainer(container);
 
       const containerInfo: DatabaseContainerInfo = {
         containerId: container.id,
-        databaseName: 'tempdb',
-        port: port,
+        databaseName: containerName,
+        port,
         studentId,
         originalDatabaseId,
         createdAt: new Date(),
@@ -95,76 +119,65 @@ export class DatabaseContainerService {
 
       this.activeContainers.set(containerKey, containerInfo);
 
-      // Wait for container to be ready and copy database
-      await this.waitForContainerReady(containerInfo);
-      await this.copyDatabaseToContainer(originalDatabaseId, containerInfo);
+      // Wait for container to be ready
+      await this.containerConnection.waitForContainerReady(containerInfo);
+
+      // Copy database data
+      const database = await this.prisma.database.findUnique({
+        where: { id: originalDatabaseId },
+      });
+
+      if (database) {
+        await this.containerConnection.copyDatabaseToContainer(
+          containerInfo,
+          database.schema,
+          database.seedData,
+        );
+      }
 
       containerInfo.status = 'ready';
-      this.activeContainers.set(containerKey, containerInfo);
 
       this.logger.log(
         `Container ${containerName} is ready for student ${studentId}`,
       );
-
       return containerInfo;
     } catch (error) {
-      this.logger.error(
-        `Failed to create container for student ${studentId}:`,
-        error,
-      );
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.logger.error(`Failed to create container: ${errorMessage}`);
+
+      if (port) {
+        this.containerManagement.releasePort(port);
+      }
+
+      this.activeContainers.delete(containerKey);
       throw error;
     }
   }
 
   /**
-   * Get connection config for a temporary container
-   */
-  getConnectionConfig(
-    containerInfo: DatabaseContainerInfo,
-  ): ContainerConnectionConfig {
-    return {
-      host: 'localhost',
-      port: containerInfo.port,
-      database: containerInfo.databaseName,
-      username: 'postgres',
-      password: 'temppass',
-    };
-  }
-
-  /**
-   * Execute query on temporary container
+   * Execute a query on a container
    */
   async executeQueryOnContainer(
-    containerInfo: DatabaseContainerInfo,
+    studentId: number,
+    originalDatabaseId: number,
     query: string,
-  ): Promise<unknown[]> {
-    const config = this.getConnectionConfig(containerInfo);
-    const clientConfig: PostgresClientConfig = {
-      host: config.host,
-      port: config.port,
-      database: config.database,
-      user: config.username,
-      password: config.password,
-    };
-    const client = new Client(clientConfig);
+  ): Promise<any> {
+    const containerKey = `${studentId}-${originalDatabaseId}`;
+    const containerInfo = this.activeContainers.get(containerKey);
 
-    try {
-      await client.connect();
-      const result = (await client.query(query)) as PostgresResult;
-      return result.rows;
-    } catch (error) {
-      this.logger.error(
-        `Query execution failed on container ${containerInfo.containerId}:`,
-        error,
-      );
-      throw error;
-    } finally {
-      await client.end();
+    if (!containerInfo || containerInfo.status !== 'ready') {
+      throw new Error('Container not found or not ready');
     }
+
+    return this.containerConnection.executeQueryOnContainer(
+      containerInfo,
+      query,
+    );
   }
 
   /**
-   * Clean up temporary container for a student
+   * Clean up a specific container
    */
   async cleanupContainer(
     studentId: number,
@@ -174,148 +187,60 @@ export class DatabaseContainerService {
     const containerInfo = this.activeContainers.get(containerKey);
 
     if (!containerInfo) {
+      this.logger.warn(
+        `No container found for student ${studentId}, database ${originalDatabaseId}`,
+      );
       return;
     }
 
-    try {
-      containerInfo.status = 'cleanup';
-      const container = this.docker.getContainer(containerInfo.containerId);
-
-      // Stop and remove container
-      await container.stop();
-      // Container will be auto-removed due to AutoRemove flag
-
-      this.activeContainers.delete(containerKey);
-      this.logger.log(`Cleaned up container for student ${studentId}`);
-    } catch (error) {
-      this.logger.error(
-        `Failed to cleanup container for student ${studentId}:`,
-        error,
-      );
-    }
+    await this.containerCleanup.cleanupSingleContainer(
+      containerInfo,
+      this.activeContainers,
+    );
   }
+
   /**
    * Clean up all containers for a student
    */
   async cleanupAllContainersForStudent(studentId: number): Promise<void> {
-    const promises: Promise<void>[] = [];
-
-    for (const [, info] of this.activeContainers.entries()) {
-      if (info.studentId === studentId) {
-        promises.push(
-          this.cleanupContainer(studentId, info.originalDatabaseId),
-        );
-      }
-    }
-
-    await Promise.all(promises);
+    await this.containerCleanup.cleanupAllContainersForStudent(
+      this.activeContainers,
+      studentId,
+    );
   }
+
   /**
-   * Clean up containers older than specified minutes
+   * Clean up old containers
    */
   async cleanupOldContainers(maxAgeMinutes: number = 60): Promise<void> {
-    const cutoffTime = new Date(Date.now() - maxAgeMinutes * 60 * 1000);
-    const toCleanup: Array<{ studentId: number; databaseId: number }> = [];
-
-    for (const [, info] of this.activeContainers.entries()) {
-      if (info.createdAt < cutoffTime) {
-        toCleanup.push({
-          studentId: info.studentId,
-          databaseId: info.originalDatabaseId,
-        });
-      }
-    }
-
-    for (const { studentId, databaseId } of toCleanup) {
-      await this.cleanupContainer(studentId, databaseId);
-    }
-
-    this.logger.log(`Cleaned up ${toCleanup.length} old containers`);
-  }
-
-  /**
-   * Wait for PostgreSQL container to be ready
-   */
-  private async waitForContainerReady(
-    containerInfo: DatabaseContainerInfo,
-  ): Promise<void> {
-    const config = this.getConnectionConfig(containerInfo);
-    const maxAttempts = 30;
-    let attempts = 0;
-
-    while (attempts < maxAttempts) {
-      try {
-        const client = new Client({
-          host: config.host,
-          port: config.port,
-          database: config.database,
-          user: config.username,
-          password: config.password,
-        });
-
-        await client.connect();
-        await client.query('SELECT 1');
-        await client.end();
-
-        this.logger.log(`Container ${containerInfo.containerId} is ready`);
-        return;
-      } catch {
-        attempts++;
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-    }
-
-    throw new Error(
-      `Container ${containerInfo.containerId} failed to become ready after ${maxAttempts} attempts`,
+    await this.containerCleanup.cleanupOldContainers(
+      this.activeContainers,
+      maxAgeMinutes,
     );
   }
+
   /**
-   * Copy database schema and data to temporary container
+   * Clean up orphaned containers
    */
-  private async copyDatabaseToContainer(
+  async cleanupOrphanedContainers(): Promise<void> {
+    await this.containerCleanup.cleanupOrphanedContainers();
+  }
+
+  /**
+   * Get active containers (for monitoring/debugging)
+   */
+  getActiveContainers(): Map<string, DatabaseContainerInfo> {
+    return new Map(this.activeContainers);
+  }
+
+  /**
+   * Get container info for a specific student/database combination
+   */
+  getContainerInfo(
+    studentId: number,
     originalDatabaseId: number,
-    containerInfo: DatabaseContainerInfo,
-  ): Promise<void> {
-    // Get the original database
-    const originalDb = await this.prisma.database.findUnique({
-      where: { id: originalDatabaseId },
-    });
-
-    if (!originalDb) {
-      throw new Error(`Original database ${originalDatabaseId} not found`);
-    }
-
-    // Execute the schema and seed data on the temporary container
-    if (originalDb.schema) {
-      await this.executeQueryOnContainer(containerInfo, originalDb.schema);
-    }
-
-    if (originalDb.seedData) {
-      await this.executeQueryOnContainer(containerInfo, originalDb.seedData);
-    }
-
-    this.logger.log(
-      `Database copied to container ${containerInfo.containerId}`,
-    );
-  }
-
-  /**
-   * Find an available port in the configured range
-   * Note: This returns a Promise for compatibility with calling code
-   */
-  private findAvailablePort(): Promise<number> {
-    const usedPorts = new Set(
-      Array.from(this.activeContainers.values()).map((info) => info.port),
-    );
-
-    for (let port = this.portRange.min; port <= this.portRange.max; port++) {
-      if (!usedPorts.has(port)) {
-        return Promise.resolve(port);
-      }
-    }
-
-    return Promise.reject(
-      new Error('No available ports in the configured range'),
-    );
+  ): DatabaseContainerInfo | undefined {
+    const containerKey = `${studentId}-${originalDatabaseId}`;
+    return this.activeContainers.get(containerKey);
   }
 }

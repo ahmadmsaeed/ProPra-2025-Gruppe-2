@@ -11,6 +11,7 @@ import {
   Delete,
   Request,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SqlImportService } from './sql-import.service';
@@ -20,30 +21,17 @@ import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuthenticatedRequest } from '../types/auth.types';
-
-interface DatabaseCreateData {
-  name: string;
-  schema?: string;
-  seedData?: string;
-  authorId?: number;
-}
-
-interface DatabaseUpdateData {
-  name?: string;
-  schema?: string;
-  seedData?: string;
-}
-
-interface DatabaseRequestBody {
-  database?: string | DatabaseUpdateData;
-  name?: string;
-  schema?: string;
-  seedData?: string;
-}
+import {
+  DatabaseCreateData,
+  DatabaseUpdateData,
+  DatabaseRequestBody,
+} from './interfaces/database.interfaces';
 
 @Controller('sql-import')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class SqlImportController {
+  private readonly logger = new Logger(SqlImportController.name);
+
   constructor(
     private readonly sqlImportService: SqlImportService,
     private readonly prisma: PrismaService,
@@ -67,13 +55,13 @@ export class SqlImportController {
   @Get('databases')
   @Roles(Role.TEACHER, Role.TUTOR, Role.STUDENT)
   async getDatabases() {
-    return this.sqlImportService.getAvailableDatabases();
+    return this.sqlImportService.getAllDatabases();
   }
 
   @Get('databases/:id')
   @Roles(Role.TEACHER, Role.TUTOR, Role.STUDENT)
   async getDatabase(@Param('id') id: string) {
-    return this.sqlImportService.findOne(+id);
+    return this.sqlImportService.getDatabase(+id);
   }
 
   @Post('databases')
@@ -91,9 +79,9 @@ export class SqlImportController {
     @UploadedFile() sqlFile: Express.Multer.File,
     @Request() req: AuthenticatedRequest,
   ) {
-    console.log('Received request to update database with ID:', id);
-    console.log('Request body:', body);
-    console.log(
+    this.logger.debug('Received request to update database with ID:', id);
+    this.logger.debug('Request body:', body);
+    this.logger.debug(
       'Received SQL file:',
       sqlFile ? 'Yes (size: ' + sqlFile.size + ')' : 'No',
     );
@@ -110,7 +98,7 @@ export class SqlImportController {
       data = body;
     }
 
-    console.log('Parsed database data:', data);
+    this.logger.debug('Parsed database data:', data);
 
     // Check if the user has permission to update this database
     const database = await this.prisma.database.findUnique({
@@ -125,8 +113,8 @@ export class SqlImportController {
       throw new NotFoundException(`Database with ID ${id} not found`);
     }
 
-    console.log('Found database:', database);
-    console.log('User ID:', req.user.sub, 'Role:', req.user.role);
+    this.logger.debug('Found database:', database);
+    this.logger.debug('User ID:', req.user.sub, 'Role:', req.user.role);
 
     // Pass the user ID, role, and SQL file to the service
     return this.sqlImportService.update(
@@ -158,7 +146,11 @@ export class SqlImportController {
     }
 
     // Pass the user ID and role to the service
-    return this.sqlImportService.delete(+id, req.user.sub, req.user.role);
+    return this.sqlImportService.deleteDatabase(
+      +id,
+      req.user.sub,
+      req.user.role,
+    );
   }
 
   // SQL query endpoint
@@ -167,7 +159,18 @@ export class SqlImportController {
   async executeQuery(
     @Body('databaseId') databaseId: number,
     @Body('query') query: string,
+    @Request() req: AuthenticatedRequest,
   ): Promise<unknown> {
+    // Students use temporary containers, teachers/tutors use direct execution
+    if (req.user.role === 'STUDENT') {
+      const studentId = req.user.sub;
+      return this.sqlImportService.executeQueryForStudent(
+        databaseId,
+        query,
+        studentId,
+      );
+    }
+
     return this.sqlImportService.executeQuery(databaseId, query);
   }
 
@@ -197,6 +200,65 @@ export class SqlImportController {
         success: false,
         error: errorMessage,
         message: 'Failed to execute query on temporary container',
+      };
+    }
+  }
+
+  // Reset a student's container for a specific database
+  @Post('reset-container')
+  @Roles(Role.STUDENT)
+  async resetContainer(
+    @Body('databaseId') databaseId: number,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    try {
+      // Get the student ID from the JWT token
+      const studentId = req.user.sub;
+
+      await this.sqlImportService.resetStudentContainer(databaseId, studentId);
+
+      return {
+        success: true,
+        message: 'Database container has been reset successfully',
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      return {
+        success: false,
+        error: errorMessage,
+        message: 'Failed to reset database container',
+      };
+    }
+  }
+
+  // Initialize container when a student starts an exercise
+  @Post('initialize-container')
+  @Roles(Role.STUDENT)
+  async initializeContainer(
+    @Body('databaseId') databaseId: number,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    try {
+      // Get the student ID from the JWT token
+      const studentId = req.user.sub;
+
+      await this.sqlImportService.initializeStudentContainer(
+        databaseId,
+        studentId,
+      );
+
+      return {
+        success: true,
+        message: 'Database container has been initialized successfully',
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
+      return {
+        success: false,
+        error: errorMessage,
+        message: 'Failed to initialize database container',
       };
     }
   }

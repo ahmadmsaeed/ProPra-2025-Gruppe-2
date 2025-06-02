@@ -10,12 +10,13 @@ import { Exercise } from '../models/exercise.model';
 import { ExerciseService } from '../services/exercise.service';
 import { SubmissionService } from '../services/submission.service';
 import { SqlImportService } from '../services/sql-import.service';
+import { AuthService } from '../services/auth.service';
 import { Submission } from '../models/submission.model';
 import { environment } from '../../environments/environment';
 import { Subject, Observable, of, throwError, BehaviorSubject, combineLatest, timer } from 'rxjs';
 import { 
   takeUntil, catchError, finalize, tap, debounceTime, 
-  distinctUntilChanged, share, switchMap, filter
+  distinctUntilChanged, share, switchMap, filter, timeout
 } from 'rxjs/operators';
 
 // Angular Material imports
@@ -52,6 +53,7 @@ interface ComponentState {
   hasError: boolean;
   errorMessage: string | null;
   isLoadingTableData: boolean;
+  isInitializingContainer: boolean;
 }
 
 @Component({
@@ -89,7 +91,8 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
     isExecuting: false,
     hasError: false,
     errorMessage: null,
-    isLoadingTableData: false
+    isLoadingTableData: false,
+    isInitializingContainer: false
   });
   
   // Observable of the current state that can be used in the template
@@ -122,6 +125,7 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
     private exerciseService: ExerciseService,
     private submissionService: SubmissionService,
     private sqlImportService: SqlImportService,
+    private authService: AuthService,
     private snackBar: MatSnackBar,
     private http: HttpClient,
     private cdr: ChangeDetectorRef
@@ -184,7 +188,28 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
       });
   }
 
+  refreshExercises(): void {
+    this.exerciseService.refreshExercises()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (exercises) => {
+          this.exercises = exercises;
+          // Clear selected exercise and reset state
+          this.selectedExercise = null;
+          this.queryResults = [];
+          this.resultColumns = [];
+          this.hasExecutedQuery = false;
+          this.showMessage('Übungen erfolgreich aktualisiert', 'success-snackbar');
+          this.cdr.markForCheck();
+        },
+        error: (error: HttpErrorResponse) => {
+          this.handleError(error, 'Error refreshing exercises');
+        }
+      });
+  }
+
   selectExercise(exercise: Exercise): void {
+    console.log('Selected exercise:', exercise.title, 'Database ID:', exercise.databaseSchemaId);
     this.selectedExercise = exercise;
     this.userQuery = exercise.initialQuery || '';
     this.userQuerySubject.next(this.userQuery);
@@ -200,7 +225,62 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
     this.tableColumns = [];
     
     this.loadDatabaseSchema(exercise.databaseSchemaId);
+    
+    // Initialize the database container for this student when they start the exercise
+    this.initializeContainerForExercise(exercise.databaseSchemaId);
+    
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Initialize database container when a student starts an exercise
+   * Only initialize containers for students, not for teachers/tutors
+   */
+  private initializeContainerForExercise(databaseId: number): void {
+    // Only initialize containers for students
+    const currentUser = this.authService.getCurrentUser();
+    if (!currentUser || currentUser.role !== 'STUDENT') {
+      return; // Teachers and tutors don't need containers
+    }
+
+    // Set loading state for container initialization
+    this.updateState({ 
+      isInitializingContainer: true,
+      hasError: false,
+      errorMessage: null 
+    });
+
+    this.sqlImportService.initializeContainer(databaseId)
+      .pipe(
+        takeUntil(this.destroy$),
+        timeout(90000), // 90 second timeout for container initialization
+        finalize(() => {
+          this.updateState({ isInitializingContainer: false });
+        }),
+        catchError((error: any) => {
+          // Log the error but don't block the user - container will be created on first query if needed
+          const isTimeout = error.name === 'TimeoutError';
+          const errorMessage = isTimeout 
+            ? 'Container initialization timed out, will retry on first query'
+            : 'Container initialization failed, will retry on first query';
+            
+          console.warn('Failed to pre-initialize container, will create on first query:', error);
+          this.updateState({ 
+            isInitializingContainer: false,
+            hasError: true,
+            errorMessage
+          });
+          return of({ success: false, message: errorMessage });
+        })
+      )
+      .subscribe({
+        next: (response: any) => {
+          if (response && response.success) {
+            console.log('Database container initialized successfully');
+            this.updateState({ isInitializingContainer: false });
+          }
+        }
+      });
   }
 
   loadDatabaseSchema(databaseId: number): void {
@@ -543,12 +623,45 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
         }
       });
   }
-  
-  resetQuery(): void {
+
+  resetDatabaseContainer(): void {
     if (!this.selectedExercise) return;
-    this.userQuery = this.selectedExercise.initialQuery || '';
-    this.userQuerySubject.next(this.userQuery);
-    this.cdr.markForCheck();
+
+    this.updateState({ 
+      isExecuting: true, 
+      hasError: false,
+      errorMessage: null
+    });
+    
+    // Call the backend API to reset the container
+    this.http.post<any>(`${environment.apiUrl}/sql-import/reset-container`, {
+      databaseId: this.selectedExercise.databaseSchemaId
+    }).pipe(
+      takeUntil(this.destroy$),
+      finalize(() => {
+        this.updateState({ isExecuting: false });
+      })
+    ).subscribe({
+      next: () => {
+        this.showMessage('Datenbank wurde erfolgreich zurückgesetzt', 'success-snackbar');
+        
+        // Clear current query results
+        this.queryResults = [];
+        this.resultColumns = [];
+        this.hasExecutedQuery = false;
+        this.lastSubmission = null;
+        
+        // Reset any table data that might be displayed
+        if (this.selectedTable) {
+          this.viewTableData(this.selectedTable);
+        }
+        
+        this.cdr.markForCheck();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.handleError(error, 'Fehler beim Zurücksetzen der Datenbank');
+      }
+    });
   }
 
   private handleError(error: HttpErrorResponse, contextMessage: string): void {
@@ -629,4 +742,12 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
   private findSeedDataForTable(tableName: string): string[] {
     return this.tableSeedDataMap[tableName] || [];
   }
-} 
+
+  /**
+   * Check if the current user is a student
+   */
+  isCurrentUserStudent(): boolean {
+    const currentUser = this.authService.getCurrentUser();
+    return currentUser?.role === 'STUDENT';
+  }
+}

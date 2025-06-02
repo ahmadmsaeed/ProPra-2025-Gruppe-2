@@ -1,7 +1,7 @@
 /**
  * Service for generating intelligent feedback using Large Language Models
  */
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 export interface FeedbackRequest {
@@ -25,6 +25,7 @@ export interface FeedbackResponse {
 
 @Injectable()
 export class LlmFeedbackService {
+  private readonly logger = new Logger(LlmFeedbackService.name);
   private readonly openaiApiKey: string;
   private readonly apiUrl = 'https://api.openai.com/v1/chat/completions';
 
@@ -45,7 +46,7 @@ export class LlmFeedbackService {
       const response = await this.callOpenAI(prompt);
       return this.parseResponse(response);
     } catch (error) {
-      console.error('Error generating LLM feedback:', error);
+      this.logger.error('Error generating LLM feedback:', error);
       return this.getFallbackFeedback(request);
     }
   }
@@ -173,7 +174,7 @@ Regeln:
         };
       }
     } catch (error) {
-      console.error('Error parsing LLM response:', error);
+      this.logger.error('Error parsing LLM response:', error);
     }
 
     // Fallback: use the raw response as feedback

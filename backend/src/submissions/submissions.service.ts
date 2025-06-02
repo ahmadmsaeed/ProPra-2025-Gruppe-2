@@ -1,9 +1,10 @@
 /**
  * Service for handling student exercise submissions
  */
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SqlImportService } from '../sql-import/sql-import.service';
+import { DatabaseContainerService } from '../sql-import/database-container.service';
 
 interface QueryResult {
   [key: string]: unknown;
@@ -15,9 +16,12 @@ interface NormalizedRow {
 
 @Injectable()
 export class SubmissionsService {
+  private readonly logger = new Logger(SubmissionsService.name);
+
   constructor(
     private prisma: PrismaService,
     private sqlImportService: SqlImportService,
+    private databaseContainerService: DatabaseContainerService,
   ) {}
 
   /**
@@ -105,7 +109,7 @@ export class SubmissionsService {
         : 'Nicht korrekt. Deine Antwort liefert ein anderes Ergebnis als die Musterlösung.';
 
       // Save the submission
-      return this.prisma.submission.create({
+      const submission = await this.prisma.submission.create({
         data: {
           query,
           isCorrect,
@@ -114,6 +118,34 @@ export class SubmissionsService {
           exerciseId,
         },
       });
+
+      // If the solution is correct, cleanup the student's container
+      if (isCorrect) {
+        try {
+          this.logger.log(
+            `Solution is correct for student ${studentId} and exercise ${exerciseId}. Cleaning up container for database ${exercise.databaseSchemaId}.`,
+          );
+
+          // Cleanup the temporary container asynchronously
+          // We don't await this to avoid blocking the submission response
+          this.databaseContainerService
+            .cleanupContainer(studentId, exercise.databaseSchemaId)
+            .catch((error) => {
+              this.logger.error(
+                `Failed to cleanup container for student ${studentId} and database ${exercise.databaseSchemaId}: ${error instanceof Error ? error.message : String(error)}`,
+                error instanceof Error ? error.stack : undefined,
+              );
+            });
+        } catch (error) {
+          // Log cleanup errors but don't fail the submission
+          this.logger.error(
+            `Error initiating container cleanup for student ${studentId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            error instanceof Error ? error.stack : undefined,
+          );
+        }
+      }
+
+      return submission;
     } catch (error) {
       // If there was an error executing the query, create a submission with error feedback
       const errorMessage =

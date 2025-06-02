@@ -4,6 +4,7 @@ import {
   BadRequestException,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DatabaseOwnershipService } from '../common/services/database-ownership.service';
@@ -11,43 +12,21 @@ import { DatabaseAuditService } from '../common/services/database-audit.service'
 import { DatabaseTableManagerService } from '../common/services/database-table-manager.service';
 import { SqlProcessorService } from '../common/services/sql-processor.service';
 import { DatabaseImportService } from './database-import.service';
-
-// Define proper interfaces for type safety
-interface DatabaseCreateData {
-  name: string;
-  schema: string;
-  seedData: string;
-  authorId?: number;
-}
-
-interface DatabaseUpdateData {
-  name?: string;
-  schema?: string;
-  seedData?: string;
-}
-
-interface TableInfo {
-  tableNames: string[];
-  tableCount: number;
-}
-
-// Types for external service interfaces
-interface DatabaseInfo {
-  id: number;
-  name: string;
-}
-
-interface DatabaseQueryResult {
-  name: string;
-  id: number;
-  schema: string;
-}
+import {
+  DatabaseCreateData,
+  DatabaseUpdateData,
+  TableInfo,
+  DatabaseInfo,
+  DatabaseQueryResult,
+} from './interfaces/database.interfaces';
 
 /**
  * Service for handling database management operations
  */
 @Injectable()
 export class DatabaseManagementService {
+  private readonly logger = new Logger(DatabaseManagementService.name);
+
   constructor(
     private prisma: PrismaService,
     private databaseOwnership: DatabaseOwnershipService,
@@ -204,7 +183,7 @@ export class DatabaseManagementService {
           where: { id: importedDb.id },
         })
         .catch((err) =>
-          console.error('Failed to delete temporary database:', err),
+          this.logger.error('Failed to delete temporary database:', err),
         );
     }
 
@@ -375,14 +354,14 @@ export class DatabaseManagementService {
     const tableNames = Array.isArray(tableInfo.tableNames)
       ? tableInfo.tableNames
       : [];
-    console.log(
+    this.logger.log(
       `Database "${name}" contains tables: ${tableNames.join(', ') || 'none detected'}`,
     );
 
     // Validate the schema
     await this.validateDatabaseSchemaAndTables(schema, tableInfo);
 
-    console.log(`Creating database entry with name: ${name}`);
+    this.logger.log(`Creating database entry with name: ${name}`);
 
     // Create database entry
     const database = await this.prisma.database.create({
@@ -479,7 +458,7 @@ export class DatabaseManagementService {
 
       return database;
     } catch (error) {
-      console.error('Error in createDatabaseFromContent:', error);
+      this.logger.error('Error in createDatabaseFromContent:', error);
       throw new BadRequestException(
         `Failed to create database from content: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );

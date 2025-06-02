@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Inject,
   forwardRef,
+  Logger,
 } from '@nestjs/common';
 import { Database } from '@prisma/client';
 import { ErrorService } from '../common/services/error.service';
@@ -19,6 +20,8 @@ import { DatabaseManagementService } from './database-management.service';
  */
 @Injectable()
 export class DatabaseImportService {
+  private readonly logger = new Logger(DatabaseImportService.name);
+
   constructor(
     private errorService: ErrorService,
     private sqlProcessor: SqlProcessorService,
@@ -80,7 +83,7 @@ export class DatabaseImportService {
         );
       } catch (error) {
         // Log the execution error but don't fail the import
-        console.error(
+        this.logger.error(
           `SQL execution error during import: ${error instanceof Error ? error.message : 'Unknown error'}`,
         );
 
@@ -91,7 +94,7 @@ export class DatabaseImportService {
 
       return database;
     } catch (error) {
-      console.error('Error in importSqlFile:', error);
+      this.logger.error('Error in importSqlFile:', error);
       const errorMsg = this.errorService.handlePostgresError(error as Error);
       throw this.errorService.createBadRequestException(
         `SQL-Datei konnte nicht importiert werden: ${errorMsg}`,
@@ -114,7 +117,7 @@ export class DatabaseImportService {
         authorId,
       );
     } catch (error) {
-      console.error('Error in createDatabaseFromSqlContent:', error);
+      this.logger.error('Error in createDatabaseFromSqlContent:', error);
       throw new BadRequestException(
         `Failed to process SQL content: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );

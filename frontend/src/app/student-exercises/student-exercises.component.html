@@ -1,5 +1,10 @@
 <div class="student-exercises">
-  <h1>SQL-Übungen</h1>
+  <div class="header-section">
+    <h1>SQL-Übungen</h1>
+    <button mat-icon-button (click)="refreshExercises()" matTooltip="Übungen aktualisieren" class="refresh-button">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </div>
   
   <div class="exercises-container" *ngIf="!(state$ | async)?.isLoading && !selectedExercise">
     <div class="exercises-grid">
@@ -38,27 +43,38 @@
   
   <!-- Exercise Practice Area -->
   <div class="exercise-practice" *ngIf="selectedExercise">
-    <div class="practice-header">
-      <button mat-button (click)="backToExercises()">
-        <mat-icon>arrow_back</mat-icon>
-        Zurück zur Übungsauswahl
-      </button>
-      <h2>{{ selectedExercise.title }}</h2>
+    <!-- Container Initialization Loading Overlay -->
+    <div class="container-loading-overlay" *ngIf="(state$ | async)?.isInitializingContainer">
+      <div class="loading-content">
+        <mat-spinner diameter="60"></mat-spinner>
+        <h3>Datenbank-Container wird vorbereitet...</h3>
+        <p>Dies kann einen Moment dauern. Bitte warten Sie, während Ihre persönliche Datenbankumgebung initialisiert wird.</p>
+      </div>
     </div>
+
+    <!-- Main exercise content (disabled while initializing) -->
+    <div class="exercise-content" [class.disabled]="(state$ | async)?.isInitializingContainer">
+      <div class="practice-header">
+        <button mat-button (click)="backToExercises()">
+          <mat-icon>arrow_back</mat-icon>
+          Zurück zur Übungsauswahl
+        </button>
+        <h2>{{ selectedExercise.title }}</h2>
+      </div>
+      
+      <mat-card class="practice-description">
+        <mat-card-content>
+          <h3>Aufgabenstellung</h3>
+          <p>{{ selectedExercise.description }}</p>
+          <div class="database-info">
+            <mat-icon>storage</mat-icon>
+            <span>Datenbank: {{ selectedExercise.database.name }}</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
     
-    <mat-card class="practice-description">
-      <mat-card-content>
-        <h3>Aufgabenstellung</h3>
-        <p>{{ selectedExercise.description }}</p>
-        <div class="database-info">
-          <mat-icon>storage</mat-icon>
-          <span>Datenbank: {{ selectedExercise.database.name }}</span>
-        </div>
-      </mat-card-content>
-    </mat-card>
-    
-    <!-- Database Schema and Table Data with Custom Tabs -->
-    <mat-card class="database-explorer">
+      <!-- Database Schema and Table Data with Custom Tabs -->
+      <mat-card class="database-explorer">
       <mat-card-content>
         <div class="custom-tabs">
           <div class="tab-buttons">
@@ -191,111 +207,112 @@
       </mat-card-content>
     </mat-card>
     
-    <mat-divider class="section-divider"></mat-divider>
-    
-    <div class="sql-editor">
-      <h3>Deine SQL-Abfrage</h3>
-      <mat-form-field appearance="fill" class="query-input">
-        <textarea 
-          matInput 
-          [(ngModel)]="userQuery" 
-          (input)="onQueryInput($event)"
-          placeholder="SELECT * FROM ..."
-          rows="5"
-        ></textarea>
-        <mat-hint *ngIf="selectedExercise.initialQuery">Hinweis: {{ selectedExercise.initialQuery }}</mat-hint>
-      </mat-form-field>
+      <mat-divider class="section-divider"></mat-divider>
       
-      <div class="query-actions">
-        <button 
-          mat-raised-button 
-          color="primary" 
-          (click)="executeQuery()" 
-          [disabled]="!userQuery || (state$ | async)?.isExecuting">
-          <mat-icon>play_arrow</mat-icon>
-          Abfrage ausführen
-        </button>
+      <div class="sql-editor">
+        <h3>Deine SQL-Abfrage</h3>
+        <mat-form-field appearance="fill" class="query-input">
+          <textarea 
+            matInput 
+            [(ngModel)]="userQuery" 
+            (input)="onQueryInput($event)"
+            placeholder="SELECT * FROM ..."
+            rows="5"
+          ></textarea>
+          <mat-hint *ngIf="selectedExercise.initialQuery">Hinweis: {{ selectedExercise.initialQuery }}</mat-hint>
+        </mat-form-field>
         
-        <button 
-          mat-raised-button 
-          color="accent" 
-          (click)="submitSolution()" 
-          [disabled]="!userQuery || (state$ | async)?.isExecuting">
-          <mat-icon>check_circle</mat-icon>
-          Lösung einreichen
-        </button>
-        
-        <button 
-          mat-button 
-          (click)="resetQuery()" 
-          [disabled]="(state$ | async)?.isExecuting">
-          <mat-icon>refresh</mat-icon>
-          Zurücksetzen
-        </button>
+        <div class="query-actions">
+          <button 
+            mat-raised-button 
+            color="primary" 
+            (click)="executeQuery()" 
+            [disabled]="!userQuery || (state$ | async)?.isExecuting">
+            <mat-icon>play_arrow</mat-icon>
+            Abfrage ausführen
+          </button>
+          
+          <button 
+            mat-raised-button 
+            color="accent" 
+            (click)="submitSolution()" 
+            [disabled]="!userQuery || (state$ | async)?.isExecuting">
+            <mat-icon>check_circle</mat-icon>
+            Lösung einreichen
+          </button>
+          
+          <button 
+            mat-button 
+            *ngIf="isCurrentUserStudent()"
+            (click)="resetDatabaseContainer()" 
+            [disabled]="(state$ | async)?.isExecuting">
+            <mat-icon>restore</mat-icon>
+            Datenbank zurücksetzen
+          </button>
+        </div>
       </div>
-    </div>
-    
-    <!-- Error Messages -->
-    <mat-card class="error-card" *ngIf="(state$ | async)?.hasError">
-      <mat-card-content>
-        <div class="error-message">
-          <mat-icon>error</mat-icon>
-          <span>{{ (state$ | async)?.errorMessage }}</span>
-        </div>
-      </mat-card-content>
-    </mat-card>
-    
-    <!-- Query Results -->
-    <mat-card class="results-card" *ngIf="hasExecutedQuery">
-      <mat-card-header>
-        <mat-card-title>
-          Abfrageergebnis
-          <span *ngIf="executionTime > 0" class="execution-time">({{ executionTime }}ms)</span>
-        </mat-card-title>
-      </mat-card-header>
       
-      <mat-card-content>
-        <div class="loading-results" *ngIf="(state$ | async)?.isExecuting">
-          <mat-spinner diameter="30"></mat-spinner>
-          <p>Führe Abfrage aus...</p>
-        </div>
-        
-        <!-- Results Table -->
-        <div class="results-table" *ngIf="!(state$ | async)?.isExecuting && queryResults.length > 0">
-          <table mat-table [dataSource]="queryResults" class="mat-elevation-z2">
-            <ng-container *ngFor="let column of resultColumns" [matColumnDef]="column">
-              <th mat-header-cell *matHeaderCellDef>{{ column }}</th>
-              <td mat-cell *matCellDef="let element">{{ element[column] }}</td>
-            </ng-container>
-            
-            <tr mat-header-row *matHeaderRowDef="resultColumns"></tr>
-            <tr mat-row *matRowDef="let row; columns: resultColumns;"></tr>
-          </table>
-          
-          <div class="results-summary">
-            <p>{{ queryResults.length }} {{ queryResults.length === 1 ? 'Ergebnis' : 'Ergebnisse' }} gefunden</p>
+      <!-- Error Messages -->
+      <mat-card class="error-card" *ngIf="(state$ | async)?.hasError">
+        <mat-card-content>
+          <div class="error-message">
+            <mat-icon>error</mat-icon>
+            <span>{{ (state$ | async)?.errorMessage }}</span>
           </div>
-        </div>
+        </mat-card-content>
+      </mat-card>
+      
+      <!-- Query Results -->
+      <mat-card class="results-card" *ngIf="hasExecutedQuery">
+        <mat-card-header>
+          <mat-card-title>
+            Abfrageergebnis
+            <span *ngIf="executionTime > 0" class="execution-time">({{ executionTime }}ms)</span>
+          </mat-card-title>
+        </mat-card-header>
         
-        <!-- Empty Results -->
-        <div class="empty-results" *ngIf="!(state$ | async)?.isExecuting && queryResults.length === 0 && !(state$ | async)?.hasError">
-          <mat-icon>info</mat-icon>
-          <p>Keine Ergebnisse gefunden</p>
-        </div>
-        
-        <!-- Submission Feedback -->
-        <div class="submission-feedback" *ngIf="lastSubmission">
-          <mat-divider></mat-divider>
+        <mat-card-content>
+          <div class="loading-results" *ngIf="(state$ | async)?.isExecuting">
+            <mat-spinner diameter="30"></mat-spinner>
+            <p>Führe Abfrage aus...</p>
+          </div>
           
-          <div class="feedback-content" [ngClass]="{'correct': lastSubmission.isCorrect, 'incorrect': !lastSubmission.isCorrect}">
-            <mat-icon>{{ lastSubmission.isCorrect ? 'check_circle' : 'cancel' }}</mat-icon>
-            <div>
-              <h4>{{ lastSubmission.isCorrect ? 'Glückwunsch!' : 'Nicht ganz richtig.' }}</h4>
-              <p>{{ lastSubmission.feedback }}</p>
+          <!-- Results Table -->
+          <div class="results-table" *ngIf="!(state$ | async)?.isExecuting && queryResults.length > 0">
+            <table mat-table [dataSource]="queryResults" class="mat-elevation-z2">
+              <ng-container *ngFor="let column of resultColumns" [matColumnDef]="column">
+                <th mat-header-cell *matHeaderCellDef>{{ column }}</th>
+                <td mat-cell *matCellDef="let element">{{ element[column] }}</td>
+              </ng-container>
+              
+              <tr mat-header-row *matHeaderRowDef="resultColumns"></tr>
+              <tr mat-row *matRowDef="let row; columns: resultColumns;"></tr>
+            </table>
+            
+            <div class="results-summary">
+              <p>{{ queryResults.length }} {{ queryResults.length === 1 ? 'Ergebnis' : 'Ergebnisse' }} gefunden</p>
             </div>
           </div>
-        </div>
-      </mat-card-content>
-    </mat-card>
-  </div>
-</div> 
+          
+          <!-- Empty Results -->
+          <div class="empty-results" *ngIf="!(state$ | async)?.isExecuting && queryResults.length === 0 && !(state$ | async)?.hasError">
+            <mat-icon>info</mat-icon>
+            <p>Keine Ergebnisse gefunden</p>
+          </div>
+          
+          <!-- Submission Feedback -->
+          <div class="submission-feedback" *ngIf="lastSubmission">
+            <mat-divider></mat-divider>
+            
+            <div class="feedback-content" [ngClass]="{'correct': lastSubmission.isCorrect, 'incorrect': !lastSubmission.isCorrect}">
+              <mat-icon>{{ lastSubmission.isCorrect ? 'check_circle' : 'cancel' }}</mat-icon>
+              <div>
+                <h4>{{ lastSubmission.isCorrect ? 'Glückwunsch!' : 'Nicht ganz richtig.' }}</h4>
+                <p>{{ lastSubmission.feedback }}</p>
+              </div>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div> <!-- Close exercise-content div -->
+  </div> 

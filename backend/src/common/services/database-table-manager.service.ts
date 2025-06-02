@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
 interface DatabaseQueryResult {
@@ -9,6 +9,8 @@ interface DatabaseQueryResult {
 
 @Injectable()
 export class DatabaseTableManagerService {
+  private readonly logger = new Logger(DatabaseTableManagerService.name);
+
   constructor(private prisma: PrismaService) {}
 
   /**
@@ -59,13 +61,13 @@ export class DatabaseTableManagerService {
    */
   async dropDatabaseTables(database: DatabaseQueryResult): Promise<string[]> {
     try {
-      console.log(
+      this.logger.log(
         `Attempting to drop tables for database: ${database.name} (ID: ${database.id})`,
       );
 
       // Extract table names only from this database's schema
       const tableNames = this.extractTableNames(database.schema);
-      console.log(`Tables found in schema: ${tableNames.join(', ') || 'none'}`);
+      this.logger.log(`Tables found in schema: ${tableNames.join(', ') || 'none'}`);
 
       // Add known tables based on the database name if not already detected
       if (
@@ -76,11 +78,11 @@ export class DatabaseTableManagerService {
       }
 
       if (tableNames.length === 0) {
-        console.log('No tables found to drop');
+        this.logger.debug('No tables found to drop');
         return [];
       }
 
-      console.log(`Attempting to drop tables: ${tableNames.join(', ')}`);
+      this.logger.log(`Attempting to drop tables: ${tableNames.join(', ')}`);
 
       const droppedTables: string[] = [];
 
@@ -97,23 +99,23 @@ export class DatabaseTableManagerService {
               'Database',
             ].includes(tableName)
           ) {
-            console.log(`Skipping application table: ${tableName}`);
+            this.logger.debug(`Skipping application table: ${tableName}`);
             continue;
           }
 
           const dropQuery = `DROP TABLE IF EXISTS "${tableName}" CASCADE;`;
           await this.prisma.$executeRawUnsafe(dropQuery);
-          console.log(`Successfully dropped table: ${tableName}`);
+          this.logger.log(`Successfully dropped table: ${tableName}`);
           droppedTables.push(tableName);
         } catch (err) {
-          console.error(`Error dropping table ${tableName}:`, err);
+          this.logger.error(`Error dropping table ${tableName}:`, err);
           // Continue with other tables even if one fails
         }
       }
 
       // Try to drop any tables derived from database name
       try {
-        console.log('Attempting name-based table cleanup');
+        this.logger.log('Attempting name-based table cleanup');
         const nameWords = database.name.split(/[_\s.]/);
         for (const word of nameWords) {
           if (
@@ -138,7 +140,7 @@ export class DatabaseTableManagerService {
               await this.prisma.$executeRawUnsafe(
                 `DROP TABLE IF EXISTS "${wordTableName}" CASCADE;`,
               );
-              console.log(`Dropped table derived from name: ${wordTableName}`);
+              this.logger.log(`Dropped table derived from name: ${wordTableName}`);
               droppedTables.push(wordTableName);
             } catch {
               // Ignore errors here
@@ -146,12 +148,12 @@ export class DatabaseTableManagerService {
           }
         }
       } catch (err) {
-        console.error('Error in name-based cleanup:', err);
+        this.logger.error('Error in name-based cleanup:', err);
       }
 
       return droppedTables;
     } catch (error) {
-      console.error('Error dropping database tables:', error);
+      this.logger.error('Error dropping database tables:', error);
       return [];
     }
   }

@@ -7,7 +7,9 @@ import { DatabaseImportService } from './database-import.service';
 import { DatabaseExecutionService } from './database-execution.service';
 import { DatabaseManagementService } from './database-management.service';
 import { DatabaseContainerService } from './database-container.service';
-import { ContainerCleanupService } from '../common/services/container-cleanup.service';
+import { ContainerManagementService } from './container-management.service';
+import { ContainerConnectionService } from './container-connection.service';
+import { ContainerCleanupService } from './container-cleanup.service';
 
 @Module({
   imports: [PrismaModule, CommonModule],
@@ -20,12 +22,14 @@ import { ContainerCleanupService } from '../common/services/container-cleanup.se
     },
     DatabaseExecutionService,
     DatabaseContainerService,
+    ContainerManagementService,
+    ContainerConnectionService,
     ContainerCleanupService,
     {
       provide: DatabaseManagementService,
       useClass: DatabaseManagementService,
     },
   ],
-  exports: [SqlImportService],
+  exports: [SqlImportService, DatabaseContainerService],
 })
 export class SqlImportModule {}

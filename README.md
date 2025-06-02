@@ -1,168 +1,162 @@
-# ProPra 2025 Group 2 – SQL Learning Platform
+# Interactive SQL Learning Platform
+## ProPra 2025 - Group 2
 
-An interactive platform for learning and practicing SQL queries with instant feedback, built with an Angular frontend, a NestJS backend, and a PostgreSQL database with Docker-based isolation.
+### Project Overview
 
----
+A comprehensive web-based SQL learning management system for educational institutions. The platform provides secure, isolated Docker environments for SQL practice with role-based access control and administrative tools for instructors.
 
-## ✨ System Overview
-
-A comprehensive SQL learning system that allows teachers and tutors to create databases and exercises while students can safely practice SQL queries in isolated containers.
-
----
-
-## 🚀 Features
-
-### 🧩 Database Management
-
-* Upload and parse SQL files via [http://localhost:4200/databases]
-* Automatic separation of schema and seed data
-* Support for PostgreSQL and MySQL with automatic conversion
-* Clean table detection and deletion per database
-* Fix: Deleting one database no longer affects unrelated tables
-
-### 👩‍🎓 Role and Permission System
-
-* **Teachers**: Full access to all databases and exercises
-* **Tutors**: Access only to their own content
-* **Students**: Access exercises in isolated environments only
-
-### 🔒 Security & Error Handling
-
-* Validates dangerous SQL commands
-* Logs all critical operations
-* Enhanced debug logs for imports and operations
-* Detailed error messages for uploads and processing
-
-### 📏 Architecture
-
-* Modular services:
-
-  * `DatabaseTableManagerService`: Handles table operations
-  * `DatabaseAuditService`: Logs changes
-  * `DatabaseValidatorService`: Checks SQL safety
-  * `DatabaseOwnershipService`: Manages permissions
+**Academic Context**: Software Engineering Project (Programmierpraktikum) 2025  
+**Team**: Group 2  
+**Project Type**: Full-Stack Web Application with Containerized Database Management
 
 ---
 
-## 🔧 Local Development (with Docker)
+## System Architecture & Features
 
-### Prerequisites
+### Core Functionality
 
-* [Docker Desktop](https://www.docker.com/products/docker-desktop)
-* Node.js (v18 or higher)
-* npm (comes with Node.js)
+#### Database Management System
+- **Multi-format SQL Import**: Parse and process SQL files through `/databases` endpoint
+- **Schema-Data Separation**: Intelligent separation of DDL and DML statements
+- **Cross-Platform Support**: Native PostgreSQL with MySQL conversion
+- **Transactional Safety**: ACID-compliant operations with rollback mechanisms
 
-### Setup Instructions
+#### Role-Based Access Control (RBAC)
+- **Teachers**: Full administrative privileges with system-wide access
+- **Tutors**: Scoped access limited to personally created content
+- **Students**: Sandboxed environment access with exercise-only permissions
+- **JWT Authentication**: Stateless authentication with role-based authorization
+
+#### Security & Quality Assurance
+- **SQL Injection Prevention**: Comprehensive query validation and sanitization
+- **Audit Trail System**: Complete logging for all database operations
+- **Service-Oriented Architecture**: Modular services for database, validation, and ownership management
+
+---
+
+## Development Environment Setup
+
+### System Requirements
+- Docker Desktop (Version 4.0+)
+- Node.js (Version 18.x LTS+)
+- npm (Version 8.x+)
+- Git (Version 2.30+)
+
+### Installation & Configuration
 
 ```bash
-# 1. Clone the repository
+# Clone and initialize
 git clone https://github.com/ProPra-2025-Gruppe-2/sql-learning-platform.git
 cd ProPra-2025-Gruppe-2
-
-# 2. Start the database
 docker-compose up -d
-```
 
-#### Backend Setup:
-
-```bash
+# Backend setup
 cd backend
 npm install
 npx prisma migrate dev --name init
 npx prisma db seed
 npm run start:dev
-```
 
-#### Frontend Setup (new terminal):
-
-```bash
+# Frontend setup (new terminal)
 cd frontend
 npm install
 npm start
 ```
 
-Access:
+### Service Endpoints
+- **Frontend**: `http://localhost:4200` - Angular SPA with Material Design
+- **Backend API**: `http://localhost:3000` - NestJS REST API
+- **API Docs**: `http://localhost:3000/api` - Swagger UI
 
-* Frontend: [http://localhost:4200](http://localhost:4200)
-* Backend API: [http://localhost:3000](http://localhost:3000)
-
-Test Credentials:
-
-* **Teacher**: `teacher@example.com / password123`
-* **Tutor**: `tutor1@example.com / password123`
-* **Student**: `student1@example.com / password123`
+### Test Credentials
+| Role | Email | Password |
+|------|-------|----------|
+| Teacher | `teacher@example.com` | `password123` |
+| Tutor | `tutor1@example.com` | `password123` |
+| Student | `student1@example.com` | `password123` |
 
 ---
 
-## 📆 Useful Docker Commands
+## Educational Workflow
+
+### Containerized Learning Environment
+1. **Exercise Initialization**: Automatic Docker container provisioning per student
+2. **Database Replication**: Complete database copy within isolated container
+3. **Secure Practice**: Students execute SQL queries with full database access
+4. **Reset Functionality**: Restore original database state for repeated practice
+5. **Automatic Cleanup**: Container termination and resource reclamation
+
+### Benefits
+- Complete data isolation between students
+- Reproducible learning environments
+- Zero risk to source databases
+- Efficient resource management with scaling
+
+---
+
+## Technology Stack
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Frontend** | Angular 17 + Material | SPA Framework & UI Components |
+| **Backend** | NestJS 10 + Prisma 5 | API Framework & Database ORM |
+| **Database** | PostgreSQL 15 | Primary Relational Database |
+| **Containerization** | Docker 24 | Application Isolation |
+| **Authentication** | JWT | Stateless Authentication |
+| **Testing** | Jest 29 | Unit & Integration Testing |
+
+---
+
+## Docker Management
 
 ```bash
-# Show logs
+# View logs and manage services
 docker-compose logs postgres
-
-# Stop the database
 docker-compose down
+docker-compose down --volumes  # Complete reset
 
-# Reset the database
-docker-compose down
-docker volume rm propra-2025-gruppe-2_postgres_data
-docker-compose up -d
+# Production deployment
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
 ---
 
-## 📚 Project Structure
+## Project Structure
 
 ```
 ProPra-2025-Gruppe-2/
-├── backend/
-│   ├── prisma/
-│   │   ├── migrations/
-│   │   ├── schema.prisma
-│   │   └── seed.ts
-│   └── src/
-│       ├── admin/
-│       ├── auth/
-│       ├── prisma/
-│       ├── sql-import/
-│       └── ...
-├── frontend/
-│   └── src/
-│       ├── app/
-│       └── ...
-├── docker-compose.yml
-└── README.md
+├── backend/                    # NestJS Application
+│   ├── prisma/                # Database Schema & Migrations
+│   ├── src/                   # Application Source Code
+│   │   ├── auth/              # Authentication & Authorization
+│   │   ├── exercise/          # Exercise Management
+│   │   ├── sql-import/        # SQL Processing Engine
+│   │   └── common/            # Shared Services
+│   └── test/                  # Testing Suite
+├── frontend/                  # Angular Application
+│   └── src/app/               # Components & Services
+├── docker-compose.yml         # Container Orchestration
+└── README.md                 # Documentation
 ```
 
 ---
 
-## 🧰 Upcoming Features – Student Exercise System
+## Academic Context & Learning Outcomes
 
-### Planned Flow:
-
-1. When a student opens an exercise, a **Docker container** is created with a copy of the database.
-2. The student practices inside the container with no effect on the original data.
-3. The container is removed after submission or exit.
-
-### Benefits:
-
-* Safe and isolated learning
-* Reproducible environments for all students
-* Progress tracking for teachers
-* Efficient resource management with automatic cleanup
-
-### Implementation Plan:
-
-1. Build API endpoints for student access
-2. Implement container creation/deletion logic
-3. Add submission and evaluation system
+This project demonstrates practical application of modern web development technologies, showcasing:
+- **Full-Stack Development**: Integration of frontend and backend technologies
+- **Database Design**: Relational modeling and optimization
+- **Security Implementation**: Authentication, authorization, and data protection
+- **Container Technology**: Docker for isolation and deployment
+- **Software Engineering**: Agile practices and code quality standards
 
 ---
 
-## 🛠️ Tech Stack
+## License & Contact
 
-* **Frontend**: Angular + Angular Material
-* **Backend**: NestJS + Prisma
-* **Database**: PostgreSQL (MySQL optional)
-* **Isolation**: Docker
-* **Authentication**: JWT
+**Project Team**: ProPra 2025 - Group 2  
+**Institution**: [University Name]  
+**Course**: Programmierpraktikum (Software Engineering Project)  
+**Academic Year**: 2025
+
+*Developed as part of the ProPra 2025 curriculum demonstrating modern software engineering practices in educational technology.*

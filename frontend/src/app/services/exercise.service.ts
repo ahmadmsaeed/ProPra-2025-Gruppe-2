@@ -30,12 +30,26 @@ export class ExerciseService {
     this.exercisesCache = this.http.get<Exercise[]>(this.apiUrl).pipe(
       retry(2), // Retry failed requests up to 2 times
       timeout(30000), // Set a 30 second timeout
-      tap(() => console.log('Fetched exercises from API')),
+      tap((exercises) => {
+        console.log('Fetched exercises from API:', exercises);
+        // Debug: Log database IDs to track the source of IDs 5 and 6
+        exercises.forEach(exercise => {
+          console.log(`Exercise "${exercise.title}" uses database ID: ${exercise.databaseSchemaId}`);
+        });
+      }),
       shareReplay(1), // Cache the response for future subscribers
       catchError(this.handleError)
     );
     
     return this.exercisesCache;
+  }
+
+  /**
+   * Force refresh exercises by clearing cache and fetching fresh data
+   */
+  refreshExercises(): Observable<Exercise[]> {
+    this.invalidateCache();
+    return this.getExercises();
   }
 
   /**
@@ -144,4 +158,4 @@ export class ExerciseService {
     
     return throwError(() => new Error(errorMessage));
   }
-} 
+}

@@ -3,6 +3,7 @@ import { RegisterComponent } from './register-component/register.component';
 import { LoginComponent } from './login-component/login.component';
 import { ProfileComponent } from './profile-component/profile.component';
 import { authGuard } from './auth.guard';
+import { noAuthGuard } from './no-auth.guard';
 import { AdminDashboardComponent } from './admin-dashboard/admin-dashboard.component';
 import { TeacherDashboardComponent } from './teacher-dashboard/teacher-dashboard.component';
 import { TutorDashboardComponent } from './tutor-dashboard/tutor-dashboard.component';
@@ -16,8 +17,8 @@ import { StudentDashboardComponent } from './student-dashboard/student-dashboard
 
 export const routes: Routes = [
   { path: '', component: LandingPageComponent },
-  { path: 'register', component: RegisterComponent },
-  { path: 'login', component: LoginComponent },
+  { path: 'register', component: RegisterComponent, canActivate: [noAuthGuard] },
+  { path: 'login', component: LoginComponent, canActivate: [noAuthGuard] },
   { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },
   { path: 'admin/dashboard', component: AdminDashboardComponent, canActivate: [authGuard] },
   { path: 'student/dashboard', component: StudentDashboardComponent, canActivate: [authGuard] },

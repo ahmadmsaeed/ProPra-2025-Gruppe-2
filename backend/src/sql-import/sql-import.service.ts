@@ -1,27 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Database } from '@prisma/client';
 import { DatabaseImportService } from './database-import.service';
 import { DatabaseExecutionService } from './database-execution.service';
 import { DatabaseManagementService } from './database-management.service';
-
-interface DatabaseCreateData {
-  name: string;
-  schema?: string;
-  seedData?: string;
-  authorId?: number;
-}
-
-interface DatabaseUpdateData {
-  name?: string;
-  schema?: string;
-  seedData?: string;
-}
+import {
+  DatabaseCreateData,
+  DatabaseUpdateData,
+} from './interfaces/database.interfaces';
 
 /**
  * Facade service that delegates to specialized database services
  */
 @Injectable()
 export class SqlImportService {
+  private readonly logger = new Logger(SqlImportService.name);
+
   constructor(
     private databaseImport: DatabaseImportService,
     private databaseExecution: DatabaseExecutionService,
@@ -62,6 +55,29 @@ export class SqlImportService {
   }
 
   /**
+   * Reset a student's database container
+   */
+  async resetStudentContainer(
+    databaseId: number,
+    studentId: number,
+  ): Promise<{ message: string }> {
+    return this.databaseExecution.resetStudentContainer(databaseId, studentId);
+  }
+
+  /**
+   * Initialize a student's database container when they start an exercise
+   */
+  async initializeStudentContainer(
+    databaseId: number,
+    studentId: number,
+  ): Promise<void> {
+    return this.databaseExecution.initializeStudentContainer(
+      databaseId,
+      studentId,
+    );
+  }
+
+  /**
    * Get all available databases
    */
   async getAllDatabases() {
@@ -73,13 +89,6 @@ export class SqlImportService {
    */
   async getDatabase(id: number) {
     return this.databaseManagement.getDatabaseById(id);
-  }
-
-  /**
-   * Find one database by ID (alias for getDatabase)
-   */
-  async findOne(id: number) {
-    return this.getDatabase(id);
   }
 
   /**
@@ -128,28 +137,11 @@ export class SqlImportService {
           userRole,
         );
       } catch (error) {
-        console.error('Error processing SQL file:', error);
+        this.logger.error('Error processing SQL file:', error);
         // Continue with the update even if SQL processing failed
       }
     }
 
-    return this.databaseManagement.updateDatabase(
-      id,
-      updateData,
-      userId,
-      userRole,
-    );
-  }
-
-  /**
-   * Update a database
-   */
-  async updateDatabase(
-    id: number,
-    updateData: DatabaseUpdateData,
-    userId: number,
-    userRole: string,
-  ) {
     return this.databaseManagement.updateDatabase(
       id,
       updateData,
@@ -192,31 +184,5 @@ export class SqlImportService {
       name,
       authorId,
     );
-  }
-
-  /**
-   * Alias for createDatabaseFromContent to maintain backward compatibility
-   * with code that calls this method by the old name
-   */
-  async createDatabaseFromSqlContent(
-    sqlContent: string,
-    name: string,
-    authorId?: number,
-  ): Promise<Database> {
-    return this.createDatabaseFromContent(sqlContent, name, authorId);
-  }
-
-  /**
-   * Delete a database
-   */
-  async delete(id: number, userId: number, userRole: string) {
-    return this.databaseManagement.deleteDatabase(id, userId, userRole);
-  }
-
-  /**
-   * Get available databases (alias for getAllDatabases)
-   */
-  async getAvailableDatabases() {
-    return this.getAllDatabases();
   }
 }

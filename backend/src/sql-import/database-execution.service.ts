@@ -2,6 +2,7 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ErrorService } from '../common/services/error.service';
@@ -38,6 +39,8 @@ function hasErrorMessage(error: unknown): error is { message: string } {
 
 @Injectable()
 export class DatabaseExecutionService {
+  private readonly logger = new Logger(DatabaseExecutionService.name);
+
   constructor(
     private prisma: PrismaService,
     private errorService: ErrorService,
@@ -79,19 +82,19 @@ export class DatabaseExecutionService {
 
     try {
       // Create or get temporary container for this student and database
-      const containerInfo =
-        await this.containerService.createTemporaryContainer(
-          studentId,
-          databaseId,
-        );
+      await this.containerService.createTemporaryContainer(
+        studentId,
+        databaseId,
+      );
 
-      // Execute query on the temporary container
+      // Execute query on the temporary container using the new interface
       return await this.containerService.executeQueryOnContainer(
-        containerInfo,
+        studentId,
+        databaseId,
         query,
       );
     } catch (error) {
-      console.error('Error executing query on temporary container:', error);
+      this.logger.error('Error executing query on temporary container:', error);
       const errorMsg = this.errorService.handlePostgresError(
         error as PostgreSQLError,
       );
@@ -143,9 +146,41 @@ export class DatabaseExecutionService {
     }
 
     try {
-      return await this.prisma.$queryRawUnsafe(query);
+      // Check if the query contains multiple statements
+      const statements = this.sqlProcessor.splitIntoStatements(query);
+      
+      if (statements.length === 1) {
+        // Single statement - execute directly
+        return await this.prisma.$queryRawUnsafe(query);
+      } else {
+        // Multiple statements - execute sequentially and return the last result
+        let lastResult: any = [];
+        
+        for (const statement of statements) {
+          const trimmedStatement = statement.trim();
+          if (trimmedStatement) {
+            // For SELECT statements, use $queryRawUnsafe to get results
+            // For other statements (DELETE, UPDATE, etc.), use $executeRawUnsafe
+            if (trimmedStatement.toUpperCase().startsWith('SELECT')) {
+              lastResult = await this.prisma.$queryRawUnsafe(trimmedStatement);
+            } else {
+              await this.prisma.$executeRawUnsafe(trimmedStatement);
+              // For non-SELECT statements, we'll keep the previous result or set empty array
+              if (!trimmedStatement.toUpperCase().startsWith('SELECT')) {
+                // Only update lastResult if this is the last statement and it's not a SELECT
+                const isLastStatement = statement === statements[statements.length - 1];
+                if (isLastStatement) {
+                  lastResult = []; // Return empty array for non-SELECT final statements
+                }
+              }
+            }
+          }
+        }
+        
+        return lastResult;
+      }
     } catch (error) {
-      console.error('Error executing query:', error);
+      this.logger.error('Error executing query:', error);
       const errorMsg = this.errorService.handlePostgresError(
         error as PostgreSQLError,
       );
@@ -204,7 +239,7 @@ export class DatabaseExecutionService {
     // Filter out empty statements
     const validStatements = statements.filter((stmt) => stmt.trim().length > 0);
 
-    console.log(
+    this.logger.log(
       `Executing ${validStatements.length} SQL statements ${useTransaction ? 'in transaction' : 'without transaction'}`,
     );
 
@@ -223,7 +258,7 @@ export class DatabaseExecutionService {
         !stmt.trim().toUpperCase().startsWith('INSERT INTO'),
     );
 
-    console.log(
+    this.logger.log(
       `Statement breakdown: ${createTableStatements.length} CREATE TABLE, ` +
         `${otherStatements.length} other DDL, ${insertStatements.length} INSERT INTO`,
     );
@@ -233,10 +268,10 @@ export class DatabaseExecutionService {
       try {
         await this.prisma.$executeRawUnsafe(statement);
         successCount++;
-        console.log(`Successfully executed: ${statement.substring(0, 50)}...`);
+        this.logger.debug(`Successfully executed: ${statement.substring(0, 50)}...`);
       } catch (err) {
         this.handleStatementError(statement, err, errors, warnings);
-        console.log(
+        this.logger.debug(
           `Handling CREATE TABLE error: ${isPostgreSQLError(err) ? err.code || 'unknown' : 'unknown'}`,
         );
         // Non-critical errors like table already exists should not prevent further execution
@@ -248,10 +283,10 @@ export class DatabaseExecutionService {
       try {
         await this.prisma.$executeRawUnsafe(statement);
         successCount++;
-        console.log(`Successfully executed: ${statement.substring(0, 50)}...`);
+        this.logger.debug(`Successfully executed: ${statement.substring(0, 50)}...`);
       } catch (err) {
         this.handleStatementError(statement, err, errors, warnings);
-        console.log(
+        this.logger.debug(
           `Handling DDL error: ${isPostgreSQLError(err) ? err.code || 'unknown' : 'unknown'}`,
         );
       }
@@ -264,7 +299,7 @@ export class DatabaseExecutionService {
         successCount++;
       } catch (err) {
         this.handleStatementError(statement, err, errors, warnings);
-        console.log(
+        this.logger.debug(
           `Handling INSERT error: ${isPostgreSQLError(err) ? err.code || 'unknown' : 'unknown'}`,
         );
       }
@@ -295,13 +330,13 @@ export class DatabaseExecutionService {
 
     // Determine if this is a critical error or just a warning
     if (this.errorService.isNonCriticalError(err as PostgreSQLError)) {
-      console.warn(
+      this.logger.warn(
         `Non-critical error in statement: ${enhancedMessage}`,
         isPostgreSQLError(err) ? err.code : 'unknown',
       );
       warnings.push(enhancedMessage);
     } else {
-      console.error(
+      this.logger.error(
         `Critical error in statement: ${enhancedMessage}`,
         isPostgreSQLError(err) ? err.code : 'unknown',
       );
@@ -379,13 +414,13 @@ export class DatabaseExecutionService {
   }> {
     // Split the SQL into individual statements first
     const statements = this.sqlProcessor.splitIntoStatements(sqlContent);
-    console.log(`SQL split into ${statements.length} statements`);
+    this.logger.debug(`SQL split into ${statements.length} statements`);
 
     // Log a sample of statements for debugging
     if (statements.length > 0) {
-      console.log('First statement preview:', statements[0].substring(0, 100));
+      this.logger.debug('First statement preview:', statements[0].substring(0, 100));
       if (statements.length > 1) {
-        console.log(
+        this.logger.debug(
           'Second statement preview:',
           statements[1].substring(0, 100),
         );
@@ -449,7 +484,7 @@ export class DatabaseExecutionService {
         warnings: result.warnings,
       };
     } catch (error) {
-      console.error(
+      this.logger.error(
         `Error in validateAndExecuteSql for database ${databaseId}:`,
         error,
       );
@@ -457,6 +492,81 @@ export class DatabaseExecutionService {
         error as PostgreSQLError,
       );
       throw new BadRequestException(`Failed to execute SQL: ${errorMsg}`);
+    }
+  }
+
+  /**
+   * Reset the student's database container by creating a brand new one
+   */
+  async resetStudentContainer(
+    databaseId: number,
+    studentId: number,
+  ): Promise<{ message: string }> {
+    const dbEntry = await this.prisma.database.findUnique({
+      where: { id: databaseId },
+    });
+    if (!dbEntry) {
+      throw new NotFoundException(`Database with ID ${databaseId} not found.`);
+    }
+
+    try {
+      // Clean up the existing container for this student and database
+      await this.containerService.cleanupContainer(studentId, databaseId);
+
+      // Create a fresh temporary container
+      await this.containerService.createTemporaryContainer(
+        studentId,
+        databaseId,
+      );
+
+      this.logger.log(
+        `Successfully reset database container for student ${studentId}, database ${databaseId}`,
+      );
+
+      return {
+        message: 'Datenbank-Container wurde erfolgreich zurückgesetzt',
+      };
+    } catch (error) {
+      this.logger.error('Error resetting student container:', error);
+      throw this.errorService.createBadRequestException(
+        `Fehler beim Zurücksetzen des Datenbank-Containers: ${
+          hasErrorMessage(error) ? error.message : 'Unbekannter Fehler'
+        }`,
+      );
+    }
+  }
+
+  /**
+   * Initialize a student's database container when they start an exercise
+   */
+  async initializeStudentContainer(
+    databaseId: number,
+    studentId: number,
+  ): Promise<void> {
+    const dbEntry = await this.prisma.database.findUnique({
+      where: { id: databaseId },
+    });
+    if (!dbEntry) {
+      throw new NotFoundException(`Database with ID ${databaseId} not found.`);
+    }
+
+    try {
+      // Create a temporary container for this student and database
+      await this.containerService.createTemporaryContainer(
+        studentId,
+        databaseId,
+      );
+
+      this.logger.log(
+        `Successfully initialized database container for student ${studentId}, database ${databaseId}`,
+      );
+    } catch (error) {
+      this.logger.error('Error initializing student container:', error);
+      throw this.errorService.createBadRequestException(
+        `Fehler beim Initialisieren des Datenbank-Containers: ${
+          hasErrorMessage(error) ? error.message : 'Unbekannter Fehler'
+        }`,
+      );
     }
   }
 }

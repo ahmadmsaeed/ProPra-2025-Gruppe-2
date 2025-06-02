@@ -114,7 +114,7 @@ export class ExerciseService implements IExerciseService {
         const baseName = sqlFile.originalname.replace(/\.sql$/i, '');
 
         const newDatabase =
-          await this.sqlImportService.createDatabaseFromSqlContent(
+          await this.sqlImportService.createDatabaseFromContent(
             sqlContent,
             baseName,
             authorId,

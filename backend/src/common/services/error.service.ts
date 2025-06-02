@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 
 interface PostgresError {
   code?: string;
@@ -10,6 +10,8 @@ interface PostgresError {
  */
 @Injectable()
 export class ErrorService {
+  private readonly logger = new Logger(ErrorService.name);
+
   /**
    * Handle PostgreSQL errors with specific error codes
    */
@@ -17,7 +19,7 @@ export class ErrorService {
     // Check if it's a PostgreSQL error with a code
     if (error?.code && error?.message) {
       // Log full error for debugging
-      console.log(
+      this.logger.debug(
         `Processing PostgreSQL error with code ${error.code}: ${error.message}`,
       );
 
@@ -77,7 +79,7 @@ export class ErrorService {
       // 23505: unique violation (duplicate key)
       // P2010: Prisma raw query error that's usually non-critical
       // 42P01: relation does not exist (in some contexts)
-      console.log(
+      this.logger.debug(
         `Checking if error code ${error.code} is non-critical. Message: ${error.message || 'No message'}`,
       );
       return ['42P07', '23505', 'P2010', '42P01'].includes(error.code);

@@ -315,6 +315,17 @@ export class SqlImportService {
   }
   
   /**
+   * Initialize a database container for a student when they start an exercise
+   */
+  initializeContainer(databaseId: number): Observable<{ success: boolean; message: string }> {
+    return this.http.post<{ success: boolean; message: string }>(`${this.apiUrl}/initialize-container`, { 
+      databaseId 
+    }).pipe(
+      catchError(error => this.handleError(error, 'Failed to initialize database container'))
+    );
+  }
+
+  /**
    * Handle API errors
    */
   private handleError(error: HttpErrorResponse, contextMessage: string): Observable<never> {

@@ -185,13 +185,14 @@ export class AdminService {
     });
 
     // Count unique completed exercises (exercises with at least one submission)
-    const completedExerciseIds = new Set(submissions.map(s => s.exerciseId));
+    const completedExerciseIds = new Set(submissions.map((s) => s.exerciseId));
     const completedExercises = completedExerciseIds.size;
 
     // Calculate progress percentage
-    const progressPercentage = totalExercises > 0 
-      ? Math.round((completedExercises / totalExercises) * 100) 
-      : 0;
+    const progressPercentage =
+      totalExercises > 0
+        ? Math.round((completedExercises / totalExercises) * 100)
+        : 0;
 
     // Get last activity (most recent submission)
     const lastSubmission = await this.prisma.submission.findFirst({

@@ -142,7 +142,7 @@ let AdminService = class AdminService {
             where: { studentId: studentId },
             include: { exercise: true },
         });
-        const completedExerciseIds = new Set(submissions.map(s => s.exerciseId));
+        const completedExerciseIds = new Set(submissions.map((s) => s.exerciseId));
         const completedExercises = completedExerciseIds.size;
         const progressPercentage = totalExercises > 0
             ? Math.round((completedExercises / totalExercises) * 100)

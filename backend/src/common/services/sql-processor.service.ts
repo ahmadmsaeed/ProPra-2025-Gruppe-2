@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 /**
  * Service for processing SQL content - parsing, cleaning, and categorizing statements
  */
 @Injectable()
 export class SqlProcessorService {
+  private readonly logger = new Logger(SqlProcessorService.name);
   /**
    * Check if SQL content is a PostgreSQL dump
    */
@@ -201,7 +202,7 @@ export class SqlProcessorService {
     // All INSERT statements go into seedData
     seedDataContent = insertStatements.join('\n');
 
-    console.log(
+    this.logger.debug(
       `Processed SQL into ${createTableStatements.length} CREATE TABLE statements, ` +
         `${otherDdlStatements.length} other DDL statements, and ` +
         `${insertStatements.length} INSERT statements.`,
@@ -321,15 +322,15 @@ export class SqlProcessorService {
 
     // Detect file type and convert if necessary
     if (this.isMySQLDump(sqlContent)) {
-      console.log('Detected MySQL dump. Converting to PostgreSQL format...');
+      this.logger.log('Detected MySQL dump. Converting to PostgreSQL format...');
       processedSql = mysqlConverter.convertToPostgreSQL(sqlContent);
       fileType = 'MySQL';
-      console.log('Conversion completed.');
+      this.logger.log('Conversion completed.');
     } else if (this.isPostgresDump(sqlContent)) {
-      console.log('Detected PostgreSQL dump. Processing...');
+      this.logger.log('Detected PostgreSQL dump. Processing...');
       processedSql = this.preparePostgresDump(sqlContent);
     } else {
-      console.log('Unknown SQL format. Assuming generic SQL...');
+      this.logger.log('Unknown SQL format. Assuming generic SQL...');
     }
 
     // Process SQL into schema and data blocks
@@ -353,7 +354,7 @@ export class SqlProcessorService {
     // Generate unique name for the database entry
     let baseName = originalFilename.replace(/\.sql$/i, '');
     if (!baseName) {
-      console.warn(
+      this.logger.warn(
         'Original filename resulted in empty baseName. Using default.',
       );
       baseName = 'imported_database';

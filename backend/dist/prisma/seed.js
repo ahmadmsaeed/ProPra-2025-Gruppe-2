@@ -176,7 +176,86 @@ async function seedDatabasesAndExercises(teacherId) {
         else {
             console.log(`Exercise already exists: ${existingToysExercise.title}`);
         }
-        return { personenDb, toysDb };
+        let objectsDb = await prisma.database.findUnique({
+            where: { name: 'ObjectsDB' }
+        });
+        if (!objectsDb) {
+            await prisma.$executeRaw `
+        INSERT INTO "Database" (name, schema, "seedData", "authorId", "createdAt", "updatedAt")
+        VALUES (
+          'ObjectsDB',
+          'CREATE TABLE items (
+            id SERIAL PRIMARY KEY,
+            type VARCHAR(50),
+            status VARCHAR(50),
+            number INT,
+            released BOOLEAN
+          );',
+          'INSERT INTO items (type, status, number, released) VALUES
+          (''Widget'', ''Available'', 101, TRUE),
+          (''Widget'', ''Out of Stock'', 102, FALSE),
+          (''Gadget'', ''Available'', 103, TRUE),
+          (''Tool'', ''Discontinued'', 104, FALSE);',
+          ${teacherId},
+          NOW(),
+          NOW()
+        )
+      `;
+            objectsDb = await prisma.database.findUnique({
+                where: { name: 'ObjectsDB' }
+            });
+        }
+        else {
+            await prisma.$executeRaw `
+        UPDATE "Database" 
+        SET "schema" = 'CREATE TABLE items (
+          id SERIAL PRIMARY KEY,
+          type VARCHAR(50),
+          status VARCHAR(50),
+          number INT,
+          released BOOLEAN
+        );',
+        "seedData" = 'INSERT INTO items (type, status, number, released) VALUES
+        (''Widget'', ''Available'', 101, TRUE),
+        (''Widget'', ''Out of Stock'', 102, FALSE),
+        (''Gadget'', ''Available'', 103, TRUE),
+        (''Tool'', ''Discontinued'', 104, FALSE);',
+        "updatedAt" = NOW()
+        WHERE name = 'ObjectsDB'
+      `;
+        }
+        console.log(`Created database: ${objectsDb.name}`);
+        const existingObjectsExercise = await prisma.exercise.findFirst({
+            where: {
+                title: 'Verfügbare Objekte verwalten',
+                databaseSchemaId: objectsDb.id
+            }
+        });
+        if (!existingObjectsExercise) {
+            const objectsExercise = await prisma.exercise.create({
+                data: {
+                    title: 'Verfügbare Objekte verwalten',
+                    description: 'Lösche alle Objekte aus der Tabelle "items", bei denen released = false ist. Zeige danach alle verbleibenden Objekte an. Verwende zwei separate SQL-Befehle: zuerst DELETE, dann SELECT.',
+                    initialQuery: 'DELETE',
+                    solutionQuery: 'DELETE FROM items WHERE released = false;\nSELECT * FROM items;',
+                    database: {
+                        connect: {
+                            id: objectsDb.id
+                        }
+                    },
+                    author: {
+                        connect: {
+                            id: teacherId
+                        }
+                    }
+                }
+            });
+            console.log(`Created exercise: ${objectsExercise.title}`);
+        }
+        else {
+            console.log(`Exercise already exists: ${existingObjectsExercise.title}`);
+        }
+        return { personenDb, toysDb, objectsDb };
     }
     catch (error) {
         console.error('Error creating database and exercise:', error);
@@ -247,6 +326,38 @@ async function createToysTable(toysDbId) {
         console.error('Error creating toys table:', error);
     }
 }
+async function createObjectsTable(objectsDbId) {
+    console.log('Creating objects table...');
+    try {
+        const objectsDb = await prisma.database.findUnique({
+            where: {
+                id: objectsDbId
+            }
+        });
+        if (!objectsDb) {
+            console.error('ObjectsDB not found in Database table');
+            return;
+        }
+        console.log('Found ObjectsDB, executing schema...');
+        try {
+            await prisma.$executeRawUnsafe(objectsDb.schema);
+            console.log('Objects table schema created successfully');
+        }
+        catch (err) {
+            console.log('Objects table might already exist, continuing with seed data');
+        }
+        try {
+            await prisma.$executeRawUnsafe(objectsDb.seedData);
+            console.log('Objects table data inserted successfully');
+        }
+        catch (err) {
+            console.log('Objects seed data might already exist, continuing');
+        }
+    }
+    catch (error) {
+        console.error('Error creating objects table:', error);
+    }
+}
 async function main() {
     console.log('Starting database seeding...');
     try {
@@ -313,6 +424,7 @@ async function main() {
         const databases = await seedDatabasesAndExercises(teacher.id);
         await createPersonenTable(databases.personenDb.id);
         await createToysTable(databases.toysDb.id);
+        await createObjectsTable(databases.objectsDb.id);
         console.log(`Seeding completed.`);
     }
     catch (error) {
