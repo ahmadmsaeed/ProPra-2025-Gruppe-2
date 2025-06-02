@@ -1,0 +1,77 @@
+/* register.component.scss */
+
+.register-card {
+  max-width: 400px;
+  margin: 2em auto;
+  background-color: var(--card-background);
+}
+
+.register-title {
+  text-align: center;
+  color: var(--text-color);
+}
+
+.register-field {
+  width: 100%;
+  margin-bottom: 1em;
+}
+
+::ng-deep .register-field {
+  .mat-mdc-form-field-label {
+    color: var(--text-secondary-color) !important;
+  }
+
+  .mdc-text-field--filled:not(.mdc-text-field--disabled) {
+    background-color: var(--surface-color) !important;
+  }
+
+  .mdc-text-field:not(.mdc-text-field--disabled) .mdc-text-field__input {
+    color: var(--text-color) !important;
+  }
+
+  .mdc-text-field:not(.mdc-text-field--disabled) .mdc-text-field__input::placeholder {
+    color: var(--text-secondary-color) !important;
+  }
+
+  .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__leading,
+  .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__notch,
+  .mdc-text-field--outlined:not(.mdc-text-field--disabled) .mdc-notched-outline__trailing {
+    border-color: var(--border-color) !important;
+  }
+
+  .mdc-text-field--outlined:not(.mdc-text-field--disabled):not(.mdc-text-field--focused):hover .mdc-notched-outline__leading,
+  .mdc-text-field--outlined:not(.mdc-text-field--disabled):not(.mdc-text-field--focused):hover .mdc-notched-outline__notch,
+  .mdc-text-field--outlined:not(.mdc-text-field--disabled):not(.mdc-text-field--focused):hover .mdc-notched-outline__trailing {
+    border-color: var(--primary-color) !important;
+  }
+}
+
+.register-button-container {
+  text-align: center;
+  margin-top: 1.5em;
+}
+
+.register-error {
+  color: var(--error-color);
+  text-align: center;
+  margin-top: 1em;
+}
+
+.register-success {
+  color: var(--success-color);
+  text-align: center;
+  margin-top: 1em;
+}
+
+// Dark theme specific overrides
+:host-context(.dark-theme) {
+  ::ng-deep .register-field {
+    .mat-mdc-form-field-label {
+      color: rgba(255, 255, 255, 0.6) !important;
+    }
+
+    .mdc-text-field:not(.mdc-text-field--disabled) .mdc-text-field__input::placeholder {
+      color: rgba(255, 255, 255, 0.5) !important;
+    }
+  }
+}

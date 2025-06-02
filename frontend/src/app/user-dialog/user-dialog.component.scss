@@ -1,0 +1,41 @@
+﻿.form-field {
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+:host {
+  h2[mat-dialog-title] {
+    color: var(--text-color);
+    margin-bottom: 20px;
+  }
+}
+
+::ng-deep {
+  .mat-mdc-select-value-text {
+    color: var(--text-color) !important;
+  }
+
+  .mat-mdc-select-arrow {
+    color: var(--text-color) !important;
+  }
+
+  .mat-mdc-select-panel {
+    background-color: var(--card-background) !important;
+  }
+
+  .mat-mdc-option {
+    color: var(--text-color) !important;
+
+    &:hover:not(.mat-mdc-option-disabled) {
+      background-color: var(--surface-color) !important;
+    }
+
+    &.mat-mdc-option-active {
+      background-color: rgba(33, 150, 243, 0.1) !important;
+    }
+  }
+
+  .mat-mdc-form-field-label {
+    color: var(--text-secondary-color) !important;
+  }
+}

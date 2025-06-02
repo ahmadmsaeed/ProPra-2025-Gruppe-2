@@ -15,8 +15,14 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+    it('should return API info object', () => {
+      const result = appController.getHello();
+      expect(result).toEqual({
+        status: 'online',
+        name: 'SQL Learning Platform API',
+        version: '1.0.0',
+        description: 'Backend API for the SQL learning platform',
+      });
     });
   });
 });

@@ -1,4 +1,5 @@
 import { AuthService } from './auth.service';
+import { AuthenticatedRequest } from '../types/auth.types';
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
@@ -23,11 +24,26 @@ export declare class AuthController {
             role: import(".prisma/client").$Enums.Role;
         };
     }>;
-    me(req: any): Promise<{
+    me(req: AuthenticatedRequest): Promise<{
+        id: number;
+        name: string;
+        email: string;
+        role: import(".prisma/client").$Enums.Role;
+        isBlocked: boolean;
+    }>;
+    updateProfile(req: AuthenticatedRequest, dto: {
+        name: string;
+        email: string;
+    }): Promise<{
         id: number;
         email: string;
         name: string;
         role: import(".prisma/client").$Enums.Role;
-        isBlocked: boolean;
+    }>;
+    changePassword(req: AuthenticatedRequest, dto: {
+        currentPassword: string;
+        newPassword: string;
+    }): Promise<{
+        success: boolean;
     }>;
 }

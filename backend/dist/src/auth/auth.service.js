@@ -22,7 +22,9 @@ let AuthService = class AuthService {
         this.jwt = jwt;
     }
     async register(dto) {
-        const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+        const existing = await this.prisma.user.findUnique({
+            where: { email: dto.email },
+        });
         if (existing) {
             throw new common_1.HttpException('E-Mail bereits vergeben', common_1.HttpStatus.BAD_REQUEST);
         }
@@ -33,7 +35,9 @@ let AuthService = class AuthService {
         return { id: user.id, email: user.email, name: user.name };
     }
     async login(dto) {
-        const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+        const user = await this.prisma.user.findUnique({
+            where: { email: dto.email },
+        });
         if (!user) {
             throw new common_1.UnauthorizedException('Ungültige Anmeldedaten');
         }
@@ -47,22 +51,70 @@ let AuthService = class AuthService {
         const payload = { email: user.email, sub: user.id, role: user.role };
         return {
             access_token: this.jwt.sign(payload),
-            user: { id: user.id, name: user.name, email: user.email, role: user.role },
+            user: {
+                id: user.id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+            },
         };
     }
     async me(user) {
         const dbUser = await this.prisma.user.findUnique({
             where: { id: user.sub },
-            select: { id: true, email: true, name: true, role: true, isBlocked: true }
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                isBlocked: true,
+            },
         });
         if (!dbUser)
             throw new common_1.NotFoundException('Benutzer nicht gefunden');
         return dbUser;
     }
+    async updateProfile(userId, dto) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user)
+            throw new common_1.NotFoundException('Benutzer nicht gefunden');
+        if (dto.email !== user.email) {
+            const existing = await this.prisma.user.findUnique({
+                where: { email: dto.email },
+            });
+            if (existing)
+                throw new common_1.HttpException('E-Mail bereits vergeben', common_1.HttpStatus.BAD_REQUEST);
+        }
+        const updated = await this.prisma.user.update({
+            where: { id: userId },
+            data: { name: dto.name, email: dto.email },
+        });
+        return {
+            id: updated.id,
+            email: updated.email,
+            name: updated.name,
+            role: updated.role,
+        };
+    }
+    async changePassword(userId, dto) {
+        const user = await this.prisma.user.findUnique({ where: { id: userId } });
+        if (!user)
+            throw new common_1.NotFoundException('Benutzer nicht gefunden');
+        const isPasswordValid = await bcrypt.compare(dto.currentPassword, user.password);
+        if (!isPasswordValid)
+            throw new common_1.UnauthorizedException('Das aktuelle Passwort ist falsch.');
+        const hash = await bcrypt.hash(dto.newPassword, 10);
+        await this.prisma.user.update({
+            where: { id: userId },
+            data: { password: hash },
+        });
+        return { success: true };
+    }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService, jwt_1.JwtService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        jwt_1.JwtService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

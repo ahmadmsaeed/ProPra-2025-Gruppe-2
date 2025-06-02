@@ -1,0 +1,15 @@
+<div *ngIf="authService.isStudent(); else accessDenied">
+  <h1>SQL-Übungen</h1>
+  
+  <div class="exercises-container">
+    <mat-card class="no-exercises-card">
+      <mat-card-content>
+        <p>Derzeit sind keine Übungen verfügbar. Bitte versuchen Sie es später erneut.</p>
+      </mat-card-content>
+    </mat-card>
+  </div>
+</div>
+
+<ng-template #accessDenied>
+  <p class="error-message">Zugriff verweigert. Sie müssen ein Student sein, um diese Seite anzuzeigen.</p>
+</ng-template> 

@@ -14,7 +14,7 @@ let AppService = class AppService {
             status: 'online',
             name: 'SQL Learning Platform API',
             version: '1.0.0',
-            description: 'Backend API for the SQL learning platform'
+            description: 'Backend API for the SQL learning platform',
         };
     }
 };

@@ -21,8 +21,9 @@ let BlockedUserGuard = class BlockedUserGuard {
         const request = context.switchToHttp().getRequest();
         const user = request.user;
         if (user && user.sub) {
+            const userId = user.sub;
             const dbUser = await this.prisma.user.findUnique({
-                where: { id: user.sub },
+                where: { id: userId },
                 select: { isBlocked: true },
             });
             if (dbUser?.isBlocked) {

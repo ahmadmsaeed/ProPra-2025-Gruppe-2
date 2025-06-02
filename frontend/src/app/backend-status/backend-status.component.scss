@@ -1,0 +1,11 @@
+.up .status-text {
+  color: var(--success-color);
+  font-weight: bold;
+}
+.down .status-text {
+  color: var(--error-color);
+  font-weight: bold;
+}
+.unknown .status-text {
+  color: var(--text-secondary-color);
+}

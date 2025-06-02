@@ -15,6 +15,7 @@ model User {
   createdAt   DateTime     @default(now())
   role        Role         @default(STUDENT)
   isBlocked   Boolean      @default(false)
+  databases   Database[]
   exercises   Exercise[]
   submissions Submission[]
 }
@@ -51,6 +52,10 @@ model Database {
   name      String     @unique
   schema    String
   seedData  String
+  authorId  Int?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  author    User?      @relation(fields: [authorId], references: [id])
   exercises Exercise[]
 }
 

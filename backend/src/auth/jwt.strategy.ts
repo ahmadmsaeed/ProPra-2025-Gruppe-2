@@ -1,6 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { ExtractJwt, Strategy } from 'passport-jwt';
+import { Strategy, ExtractJwt } from 'passport-jwt';
+
+interface JwtPayload {
+  sub: number;
+  email: string;
+  name?: string;
+  role: string;
+}
 
 /**
  * JWT-Strategie für Passport. Extrahiert und validiert das JWT aus dem Authorization-Header.
@@ -15,8 +22,24 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
+  validate(payload: JwtPayload): JwtPayload {
     // Gibt das Payload als req.user weiter (inkl. Rolle, falls vorhanden)
-    return { sub: payload.sub, email: payload.email, name: payload.name, role: payload.role };
+    try {
+      const userId = payload.sub;
+      const userEmail = payload.email;
+      const userName = payload.name;
+      const userRole = payload.role;
+
+      return {
+        sub: userId,
+        email: userEmail,
+        name: userName,
+        role: userRole,
+      };
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`JWT validation failed: ${errorMessage}`);
+    }
   }
 }
