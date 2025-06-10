@@ -3,6 +3,7 @@ import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import { HttpException } from '@nestjs/common';
+import * as bcrypt from 'bcryptjs';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -24,21 +25,33 @@ describe('AuthService', () => {
 
   it('should throw if user not found', async () => {
     prisma.user.findUnique.mockResolvedValue(null);
-    await expect(service.login({ email: 'a@b.de', password: 'pw' }))
-      .rejects.toThrow(HttpException);
+    await expect(
+      service.login({ email: 'a@b.de', password: 'pw' }),
+    ).rejects.toThrow(HttpException);
   });
 
   it('should throw if password is wrong', async () => {
-    prisma.user.findUnique.mockResolvedValue({ email: 'a@b.de', password: 'hashed', id: 1, name: 'Test' });
+    prisma.user.findUnique.mockResolvedValue({
+      email: 'a@b.de',
+      password: 'hashed',
+      id: 1,
+      name: 'Test',
+    });
     // bcrypt.compare will be false
-    jest.spyOn(require('bcryptjs'), 'compare').mockResolvedValue(false);
-    await expect(service.login({ email: 'a@b.de', password: 'pw' }))
-      .rejects.toThrow(HttpException);
+    (jest.spyOn(bcrypt, 'compare') as jest.Mock).mockResolvedValue(false);
+    await expect(
+      service.login({ email: 'a@b.de', password: 'pw' }),
+    ).rejects.toThrow(HttpException);
   });
 
   it('should return token and user if login is correct', async () => {
-    prisma.user.findUnique.mockResolvedValue({ email: 'a@b.de', password: 'hashed', id: 1, name: 'Test' });
-    jest.spyOn(require('bcryptjs'), 'compare').mockResolvedValue(true);
+    prisma.user.findUnique.mockResolvedValue({
+      email: 'a@b.de',
+      password: 'hashed',
+      id: 1,
+      name: 'Test',
+    });
+    (jest.spyOn(bcrypt, 'compare') as jest.Mock).mockResolvedValue(true);
     jwt.sign.mockReturnValue('jwt-token');
     const result = await service.login({ email: 'a@b.de', password: 'pw' });
     expect(result).toEqual({

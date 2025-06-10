@@ -1,0 +1,104 @@
+﻿.profile-container {
+  max-width: 600px;
+  margin: 2em auto;
+  padding: 0 1rem;
+}
+
+h1 {
+  color: var(--primary-color);
+  margin-bottom: 1.5rem;
+  font-weight: 400;
+}
+
+.profile-card {
+  margin-bottom: 2rem;
+  border-radius: 8px;
+  background-color: var(--card-background);
+  padding: 1rem;
+}
+
+.avatar-icon {
+  font-size: 40px;
+  height: 40px;
+  width: 40px;
+  color: var(--primary-color);
+}
+
+.user-info {
+  padding: 1rem 0;
+}
+
+.info-row {
+  display: flex;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--divider-color);
+}
+
+.info-label {
+  width: 150px;
+  font-weight: 500;
+  color: var(--text-secondary-color);
+}
+
+.info-value {
+  flex: 1;
+  color: var(--text-color) !important;
+}
+
+.badge-wrapper {
+  display: block;
+  margin-left: -8px; 
+}
+
+.role-badge {
+  padding: 4px 8px;
+  border-radius: 16px;
+  font-weight: 400;
+  display: inline-block;
+}
+
+.role-student {
+  background-color: var(--badge-background-student);
+  color: var(--badge-color-student);
+}
+
+.role-tutor {
+  background-color: var(--badge-background-tutor);
+  color: var(--badge-color-tutor);
+}
+
+.role-teacher {
+  background-color: var(--badge-background-teacher);
+  color: var(--badge-color-teacher);
+}
+
+mat-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 0;
+}
+
+.loading-container p {
+  margin-top: 1rem;
+  color: var(--text-hint-color);
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 1rem;
+  background-color: var(--error-color);
+  opacity: 0.1;
+  border-radius: 4px;
+  color: var(--text-color);
+}

@@ -1,0 +1,32 @@
+﻿.exercise-details {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+h3 {
+  color: var(--primary-color);
+  margin: 20px 0 10px;
+}
+
+.sql-code {
+  background-color: var(--surface-color);
+  color: var(--text-color);
+  padding: 15px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-family: "Courier New", Courier, monospace;
+  white-space: pre-wrap;
+  border: 1px solid var(--divider-color);
+}
+
+mat-card-content {
+  margin-top: 16px;
+}
+
+// Spezifische Dark Mode Anpassungen
+:host-context(.dark-theme) {
+  .sql-code {
+    background-color: #1a1a1a; // Noch dunkler als der normale Hintergrund
+    border-color: var(--border-color);
+  }
+}

@@ -1,0 +1,78 @@
+﻿.full-width {
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+:host {
+  h2[mat-dialog-title] {
+    color: var(--text-color);
+    margin-bottom: 20px;
+  }
+}
+
+.file-upload {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px dashed var(--border-color);
+  border-radius: 4px;
+  background-color: var(--surface-color);
+}
+
+.file-upload label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-color);
+  font-weight: 500;
+}
+
+.file-upload input {
+  margin-bottom: 8px;
+  color: var(--text-color);
+  background-color: transparent;
+}
+
+.file-upload input[type="file"] {
+  width: 100%;
+  padding: 8px;
+  border: none;
+  outline: none;
+  cursor: pointer;
+}
+
+.file-upload input[type="file"]::-webkit-file-upload-button {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+.file-upload input[type="file"]::file-selector-button {
+  background-color: var(--primary-color);
+  color: white;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 8px;
+}
+
+.file-upload small {
+  display: block;
+  color: var(--text-secondary-color);
+  margin-top: 8px;
+}
+
+// Dark Mode spezifische Anpassungen
+:host-context(.dark-theme) {
+  .file-upload {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  .file-upload input[type="file"]::-webkit-file-upload-button,
+  .file-upload input[type="file"]::file-selector-button {
+    background-color: #2196f3; // Helleres Blau für bessere Sichtbarkeit
+  }
+}

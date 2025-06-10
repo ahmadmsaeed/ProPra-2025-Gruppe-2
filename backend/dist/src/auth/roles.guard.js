@@ -19,15 +19,13 @@ let RolesGuard = class RolesGuard {
         this.reflector = reflector;
     }
     canActivate(context) {
-        const requiredRoles = this.reflector.getAllAndOverride(roles_decorator_1.ROLES_KEY, [
-            context.getHandler(),
-            context.getClass(),
-        ]);
+        const requiredRoles = this.reflector.getAllAndOverride(roles_decorator_1.ROLES_KEY, [context.getHandler(), context.getClass()]);
         if (!requiredRoles || requiredRoles.length === 0) {
             return true;
         }
-        const { user } = context.switchToHttp().getRequest();
-        if (!user || !requiredRoles.includes(user.role)) {
+        const request = context.switchToHttp().getRequest();
+        const user = request.user;
+        if (!user || !user.role || !requiredRoles.includes(user.role)) {
             throw new common_1.ForbiddenException('Keine Berechtigung für diese Aktion');
         }
         return true;

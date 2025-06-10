@@ -15,26 +15,40 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.AdminController = void 0;
 const common_1 = require("@nestjs/common");
 const admin_service_1 = require("./admin.service");
+const exercise_service_1 = require("../exercise/exercise.service");
 const jwt_auth_guard_1 = require("../auth/jwt-auth.guard");
 const roles_guard_1 = require("../auth/roles.guard");
 const roles_decorator_1 = require("../auth/roles.decorator");
 const client_1 = require("@prisma/client");
 let AdminController = class AdminController {
     adminService;
-    constructor(adminService) {
+    exerciseService;
+    constructor(adminService, exerciseService) {
         this.adminService = adminService;
+        this.exerciseService = exerciseService;
     }
     async listTeachers() {
         return this.adminService.listTeachers();
     }
+    async listTutors() {
+        return this.adminService.listTutors();
+    }
     async listStudents() {
         return this.adminService.listStudents();
+    }
+    async listExercises() {
+        return this.exerciseService.findAll();
+    }
+    async getStudentProgress(studentId) {
+        return this.adminService.getStudentProgress(studentId);
     }
     async createUser(createUserDto) {
         return this.adminService.createUser(createUserDto);
     }
     async updateUser(userId, updateUserDto, req) {
-        if (req.user.sub === userId && updateUserDto.role && updateUserDto.role !== client_1.Role.TEACHER) {
+        if (req.user.sub === userId &&
+            updateUserDto.role &&
+            updateUserDto.role !== client_1.Role.TEACHER) {
             throw new common_1.ForbiddenException('Sie können Ihre eigene Rolle nicht ändern.');
         }
         return this.adminService.updateUser(userId, updateUserDto);
@@ -47,7 +61,7 @@ let AdminController = class AdminController {
     }
     async blockUser(userId, req) {
         if (req.user.sub === userId) {
-            throw new common_1.ForbiddenException('Sie können sich nicht selbst sperren.');
+            throw new common_1.ForbiddenException('Sie können Ihr eigenes Konto nicht sperren.');
         }
         return this.adminService.blockUser(userId);
     }
@@ -63,11 +77,30 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "listTeachers", null);
 __decorate([
+    (0, common_1.Get)('tutors'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "listTutors", null);
+__decorate([
     (0, common_1.Get)('students'),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], AdminController.prototype, "listStudents", null);
+__decorate([
+    (0, common_1.Get)('exercises'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "listExercises", null);
+__decorate([
+    (0, common_1.Get)('students/:id/progress'),
+    __param(0, (0, common_1.Param)('id', common_1.ParseIntPipe)),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Number]),
+    __metadata("design:returntype", Promise)
+], AdminController.prototype, "getStudentProgress", null);
 __decorate([
     (0, common_1.Post)('users'),
     __param(0, (0, common_1.Body)()),
@@ -110,7 +143,8 @@ __decorate([
 exports.AdminController = AdminController = __decorate([
     (0, common_1.Controller)('admin'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
-    (0, roles_decorator_1.Roles)('TEACHER'),
-    __metadata("design:paramtypes", [admin_service_1.AdminService])
+    (0, roles_decorator_1.Roles)(client_1.Role.TEACHER, client_1.Role.TUTOR),
+    __metadata("design:paramtypes", [admin_service_1.AdminService,
+        exercise_service_1.ExerciseService])
 ], AdminController);
 //# sourceMappingURL=admin.controller.js.map

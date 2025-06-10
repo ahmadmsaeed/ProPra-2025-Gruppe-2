@@ -25,12 +25,18 @@ let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
             return false;
         const req = context.switchToHttp().getRequest();
         const userId = req.user?.sub;
-        if (!userId)
-            return false;
-        const prisma = this.prisma || new (require('../prisma/prisma.service').PrismaService)();
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (user?.isBlocked) {
-            throw new common_1.UnauthorizedException('Account ist gesperrt. Bitte wende dich an den Support.');
+        if (!userId || typeof userId !== 'number') {
+            throw new common_1.UnauthorizedException('Invalid authorization token');
+        }
+        const user = await this.prisma.user.findUnique({
+            where: { id: userId },
+            select: { isBlocked: true },
+        });
+        if (!user) {
+            throw new common_1.UnauthorizedException('User not found');
+        }
+        if (user.isBlocked) {
+            throw new common_1.UnauthorizedException('Account is blocked. Please contact support.');
         }
         return true;
     }

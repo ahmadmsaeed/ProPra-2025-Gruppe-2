@@ -2,7 +2,7 @@
 
 services:
   postgres:
-    image: postgres
+    image: postgres:15
     container_name: postgres-nest
     restart: always
     ports:

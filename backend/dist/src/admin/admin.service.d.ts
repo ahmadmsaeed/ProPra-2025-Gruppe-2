@@ -1,12 +1,12 @@
 import { PrismaService } from '../prisma/prisma.service';
-import { Role } from '@prisma/client';
-interface CreateUserDto {
+import { Role, User } from '@prisma/client';
+export interface CreateUserDto {
     email: string;
     password: string;
     name: string;
     role: Role;
 }
-interface UpdateUserDto {
+export interface UpdateUserDto {
     email?: string;
     password?: string;
     name?: string;
@@ -16,61 +16,17 @@ export declare class AdminService {
     private prisma;
     constructor(prisma: PrismaService);
     private readonly userSelect;
-    listTeachers(): Promise<{
-        id: number;
-        email: string;
-        name: string;
-        createdAt: Date;
-        role: import(".prisma/client").$Enums.Role;
-        isBlocked: boolean;
-    }[]>;
-    listStudents(): Promise<{
-        id: number;
-        email: string;
-        name: string;
-        createdAt: Date;
-        role: import(".prisma/client").$Enums.Role;
-        isBlocked: boolean;
-    }[]>;
-    createUser(createUserDto: CreateUserDto): Promise<{
-        id: number;
-        email: string;
-        name: string;
-        createdAt: Date;
-        role: import(".prisma/client").$Enums.Role;
-        isBlocked: boolean;
-    }>;
-    updateUser(userId: number, updateUserDto: UpdateUserDto): Promise<{
-        id: number;
-        email: string;
-        name: string;
-        createdAt: Date;
-        role: import(".prisma/client").$Enums.Role;
-        isBlocked: boolean;
-    }>;
-    deleteUser(userId: number): Promise<{
-        id: number;
-        email: string;
-        name: string;
-        createdAt: Date;
-        role: import(".prisma/client").$Enums.Role;
-        isBlocked: boolean;
-    }>;
-    blockUser(userId: number): Promise<{
-        id: number;
-        email: string;
-        name: string;
-        createdAt: Date;
-        role: import(".prisma/client").$Enums.Role;
-        isBlocked: boolean;
-    }>;
-    unblockUser(userId: number): Promise<{
-        id: number;
-        email: string;
-        name: string;
-        createdAt: Date;
-        role: import(".prisma/client").$Enums.Role;
-        isBlocked: boolean;
+    listTeachers(): Promise<Omit<User, 'password'>[]>;
+    listTutors(): Promise<Omit<User, 'password'>[]>;
+    listStudents(): Promise<Omit<User, 'password'>[]>;
+    createUser(dto: CreateUserDto): Promise<Omit<User, 'password'>>;
+    updateUser(userId: number, dto: UpdateUserDto): Promise<Omit<User, 'password'>>;
+    deleteUser(userId: number): Promise<Omit<User, 'password'>>;
+    blockUser(userId: number): Promise<Omit<User, 'password'>>;
+    unblockUser(userId: number): Promise<Omit<User, 'password'>>;
+    getStudentProgress(studentId: number): Promise<{
+        completedExercises: number;
+        progressPercentage: number;
+        lastActivity: Date | null;
     }>;
 }
-export {};
