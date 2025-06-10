@@ -4,34 +4,35 @@
   max-width: 1200px;
   margin: 0 auto;
   font-family: 'Roboto', sans-serif;
+  background: transparent;
 }
 
 .student-dashboard-container {
   display: flex;
   flex-direction: column;
-  gap: 2.5rem; // Increased gap
+  gap: 2.5rem;
 }
 
 .hero-section {
   text-align: center;
-  padding: 3rem 1.5rem; // Increased padding
-  background: linear-gradient(135deg, #e3f2fd 0%, #c5cae9 100%); // Adjusted gradient
-  border-radius: 12px; // Smoother radius
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); // Softer shadow
+  padding: 3rem 1.5rem;
+  background: linear-gradient(135deg, var(--badge-background-student, #e3f2fd) 0%, var(--card-background, #c5cae9) 100%);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 
   h1 {
-    font-size: 3rem; // Larger heading
+    font-size: 3rem;
     font-weight: 700;
     margin-bottom: 1rem;
-    color: #1a237e; // Darker primary blue, for better contrast
+    color: var(--badge-color-student, #1a237e);
     letter-spacing: -0.5px;
   }
 
   .subtitle {
-    font-size: 1.25rem; // Larger subtitle
-    color: #3949ab; // Indigo shade for subtitle
-    margin-bottom: 2rem; // Increased margin
-    max-width: 650px; // Wider text block
+    font-size: 1.25rem;
+    color: var(--accent-color, #3949ab);
+    margin-bottom: 2rem;
+    max-width: 650px;
     margin-left: auto;
     margin-right: auto;
     line-height: 1.6;
@@ -39,34 +40,98 @@
 
   .hero-image-placeholder {
     mat-icon {
-      font-size: 64px; // Larger icon
+      font-size: 64px;
       width: 64px;
       height: 64px;
-      color: #3f51b5; // Standard Material primary
+      color: var(--accent-color, #3f51b5);
       opacity: 0.8;
     }
   }
 }
 
-.content-section {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
+.progress-section {
+  margin-bottom: 2rem;
 }
+
+.progress-card {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+  border-left: 5px solid var(--accent-color, #3f51b5);
+  background: var(--card-background, #fff);
+  color: var(--text-color, #222);
+
+  mat-card-header {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--divider-color, #eee);
+
+    mat-card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 1.3rem;
+      font-weight: 500;
+      color: var(--text-color, #1a237e);
+
+      mat-icon {
+        color: var(--accent-color, #3f51b5);
+      }
+    }
+
+    mat-card-subtitle {
+      color: var(--accent-color, #303f9f);
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-top: 4px;
+    }
+  }
+}
+
+.progress-container {
+  padding: 8px 0;
+
+  .custom-progress-bar {
+    height: 12px;
+    border-radius: 6px;
+    background-color: var(--badge-background-student, #e3f2fd);
+
+    ::ng-deep .mat-progress-bar-fill::after {
+      background: linear-gradient(90deg, var(--accent-color, #3f51b5), var(--badge-color-student, #1a237e));
+      border-radius: 6px;
+    }
+
+    ::ng-deep .mat-progress-bar-buffer {
+      background-color: var(--badge-background-student, #e3f2fd);
+    }
+  }
+
+  .progress-stats {
+    margin-top: 12px;
+    text-align: center;
+
+    .completed-count {
+      color: var(--text-secondary-color, #555);
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+  }
+}
+
 
 .exercise-overview {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); // Slightly larger min card width
-  gap: 2rem; // Increased gap
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
 }
 
 .exercise-card {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  border-radius: 8px; // Consistent border radius
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07); // Subtle shadow
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
   transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  background: var(--card-background, #fff);
+  color: var(--text-color, #222);
 
   &:hover {
     transform: translateY(-4px);
@@ -74,28 +139,28 @@
   }
 
   mat-card-header {
-    padding-bottom: 12px; // More spacing
-    border-bottom: 1px solid #eee; // Separator
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--divider-color, #eee);
   }
 
   mat-card-title {
-    font-size: 1.3rem; // Larger card title
+    font-size: 1.3rem;
     font-weight: 500;
-    color: #2c3e50; // Darker text color
+    color: var(--text-color, #2c3e50);
   }
 
   mat-card-subtitle {
-    color: #7f8c8d; // Softer subtitle color
+    color: var(--text-secondary-color, #7f8c8d);
     font-size: 0.9rem;
   }
 
   mat-card-content {
     flex-grow: 1;
-    padding-top: 16px; // Add padding to content
+    padding-top: 16px;
     p {
-      font-size: 1rem; // Standard paragraph size
+      font-size: 1rem;
       line-height: 1.6;
-      color: #34495e; // Readable text color
+      color: var(--text-secondary-color, #34495e);
     }
   }
 
@@ -103,8 +168,8 @@
     padding: 16px;
     display: flex;
     justify-content: flex-end;
-    background-color: #f9f9f9; // Slight background for actions
-    border-top: 1px solid #eee; // Separator
+    background-color: var(--surface-color, #f9f9f9);
+    border-top: 1px solid var(--divider-color, #eee);
     button {
       display: flex;
       align-items: center;
@@ -117,37 +182,38 @@
 }
 
 .last-exercise-card {
-  border-left: 5px solid var(--mat-primary-700, #303f9f); // Darker primary border
+  border-left: 5px solid var(--accent-color, #3f51b5);
 }
 
 .next-exercise-card {
-  border-left: 5px solid var(--mat-accent-400, #ff5252); // Brighter accent border
+  border-left: 5px solid var(--error-color, #ff5252);
 }
 
 .no-exercise-card {
   text-align: center;
-  padding: 2rem; // More padding for emphasis
-  background-color: #f5f5f5; // Light background
+  padding: 2rem;
+  background-color: var(--surface-color, #f5f5f5);
+  color: var(--text-color, #222);
   mat-card-actions {
     justify-content: center;
   }
   mat-card-title {
-    color: #555;
+    color: var(--text-secondary-color, #555);
   }
 }
 
-
+/* ACTIONS PANEL */
 .actions-panel {
   text-align: center;
-  margin-top: 1.5rem; // More spacing
+  margin-top: 1.5rem;
   button {
-    padding: 0.8rem 1.8rem; // Larger button
-    font-size: 1.05rem; // Slightly larger font
-    border-radius: 6px; // Smoother button radius
+    padding: 0.8rem 1.8rem;
+    font-size: 1.05rem;
+    border-radius: 6px;
   }
 }
 
-// Loading and Error States
+/* LOADING & ERROR CARDS */
 .loading-container,
 .error-container {
   display: flex;
@@ -159,6 +225,8 @@
     text-align: center;
     padding: 40px;
     min-width: 300px;
+    background: var(--card-background, #fff);
+    color: var(--text-color, #222);
 
     mat-icon {
       font-size: 48px;
@@ -169,7 +237,7 @@
 
     p {
       margin: 20px 0;
-      color: #666;
+      color: var(--text-secondary-color, #666);
     }
 
     mat-progress-spinner {
@@ -179,12 +247,12 @@
 }
 
 .error-message {
-  color: #f44336;
+  color: var(--error-color, #f44336);
   text-align: center;
   padding: 20px;
 }
 
-// Responsive adjustments
+/* RESPONSIVE */
 @media (max-width: 768px) {
   :host {
     padding: 1rem;
@@ -202,70 +270,5 @@
 
   .exercise-overview {
     grid-template-columns: 1fr;
-  }
-}
-
-.progress-section {
-  margin-bottom: 2rem;
-}
-
-.progress-card {
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
-  border-left: 5px solid var(--mat-primary-600, #3f51b5);
-
-  mat-card-header {
-    padding-bottom: 12px;
-    border-bottom: 1px solid #eee;
-
-    mat-card-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 1.3rem;
-      font-weight: 500;
-      color: #1a237e;
-
-      mat-icon {
-        color: var(--mat-primary-600, #3f51b5);
-      }
-    }
-
-    mat-card-subtitle {
-      color: var(--mat-primary-700, #303f9f);
-      font-weight: 600;
-      font-size: 1.1rem;
-      margin-top: 4px;
-    }
-  }
-}
-
-.progress-container {
-  padding: 8px 0;
-
-  .custom-progress-bar {
-    height: 12px;
-    border-radius: 6px;
-    background-color: #e3f2fd;
-
-    ::ng-deep .mat-progress-bar-fill::after {
-      background: linear-gradient(90deg, #3f51b5, #1a237e);
-      border-radius: 6px;
-    }
-
-    ::ng-deep .mat-progress-bar-buffer {
-      background-color: #e3f2fd;
-    }
-  }
-
-  .progress-stats {
-    margin-top: 12px;
-    text-align: center;
-
-    .completed-count {
-      color: #555;
-      font-size: 0.95rem;
-      font-weight: 500;
-    }
   }
 }
