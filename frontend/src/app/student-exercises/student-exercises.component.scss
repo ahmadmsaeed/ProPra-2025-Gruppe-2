@@ -632,3 +632,19 @@ h3 {
   filter: blur(1px);
   transition: all 0.3s ease;
 }
+
+:host-context(.dark-theme) {
+  .container-loading-overlay {
+    background: rgba(20, 20, 20, 0.97); // dunklerer Hintergrund für Overlay
+    color: #e3e3e3;
+
+    .loading-content {
+      h3 {
+        color: #90caf9; // heller Blauton für Titel
+      }
+      p {
+        color: #b0b0b0; // heller Grauton für Text
+      }
+    }
+  }
+}
