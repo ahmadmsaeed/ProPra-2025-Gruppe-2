@@ -53,6 +53,11 @@ docker-compose up -d
 # Backend setup
 cd backend
 npm install
+
+# Environment Setup
+cp .env.example .env
+# Edit .env and add your OpenAI API key for LLM feedback feature
+
 npx prisma migrate dev --name init
 npx prisma db seed
 npm run start:dev

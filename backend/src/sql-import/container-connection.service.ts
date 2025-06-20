@@ -108,10 +108,13 @@ export class ContainerConnectionService {
 
     try {
       await client.connect();
-      
+
       // Check if the query contains multiple statements (separated by semicolons)
-      const statements = query.split(';').map(s => s.trim()).filter(s => s.length > 0);
-      
+      const statements = query
+        .split(';')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
       if (statements.length === 1) {
         // Single statement - execute directly
         const result = await client.query(query);
@@ -119,7 +122,7 @@ export class ContainerConnectionService {
       } else {
         // Multiple statements - execute sequentially and return the last result
         let lastResult: any = [];
-        
+
         for (const statement of statements) {
           const trimmedStatement = statement.trim();
           if (trimmedStatement) {
@@ -131,7 +134,7 @@ export class ContainerConnectionService {
             }
           }
         }
-        
+
         return lastResult;
       }
     } finally {

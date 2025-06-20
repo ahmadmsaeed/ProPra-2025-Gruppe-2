@@ -27,21 +27,28 @@ export interface FeedbackResponse {
 export class LlmFeedbackService {
   private readonly logger = new Logger(LlmFeedbackService.name);
   private readonly openaiApiKey: string;
+  private readonly isLlmEnabled: boolean;
   private readonly apiUrl = 'https://api.openai.com/v1/chat/completions';
 
   constructor(private configService: ConfigService) {
     this.openaiApiKey = this.configService.get<string>('OPENAI_API_KEY') || '';
+    this.isLlmEnabled =
+      this.configService.get<boolean>('LLM_FEEDBACK_ENABLED') || false;
   }
 
   /**
    * Generate intelligent feedback for a SQL submission
    */
   async generateFeedback(request: FeedbackRequest): Promise<FeedbackResponse> {
-    if (!this.openaiApiKey) {
+    if (!this.openaiApiKey || !this.isLlmEnabled) {
+      this.logger.log(
+        'LLM feedback disabled or API key missing, using fallback feedback',
+      );
       return this.getFallbackFeedback(request);
     }
 
     try {
+      this.logger.log('Generating LLM feedback for SQL submission');
       const prompt = this.buildPrompt(request);
       const response = await this.callOpenAI(prompt);
       return this.parseResponse(response);
@@ -121,7 +128,7 @@ Regeln:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'gpt-4.1-mini',
         messages: [
           {
             role: 'system',
@@ -139,7 +146,9 @@ Regeln:
     });
 
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+      throw new Error(
+        `OpenAI API error: ${response.status} - ${response.statusText}`,
+      );
     }
 
     interface OpenAIResponse {

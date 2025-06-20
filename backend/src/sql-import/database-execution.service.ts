@@ -148,14 +148,14 @@ export class DatabaseExecutionService {
     try {
       // Check if the query contains multiple statements
       const statements = this.sqlProcessor.splitIntoStatements(query);
-      
+
       if (statements.length === 1) {
         // Single statement - execute directly
         return await this.prisma.$queryRawUnsafe(query);
       } else {
         // Multiple statements - execute sequentially and return the last result
         let lastResult: any = [];
-        
+
         for (const statement of statements) {
           const trimmedStatement = statement.trim();
           if (trimmedStatement) {
@@ -168,7 +168,8 @@ export class DatabaseExecutionService {
               // For non-SELECT statements, we'll keep the previous result or set empty array
               if (!trimmedStatement.toUpperCase().startsWith('SELECT')) {
                 // Only update lastResult if this is the last statement and it's not a SELECT
-                const isLastStatement = statement === statements[statements.length - 1];
+                const isLastStatement =
+                  statement === statements[statements.length - 1];
                 if (isLastStatement) {
                   lastResult = []; // Return empty array for non-SELECT final statements
                 }
@@ -176,7 +177,7 @@ export class DatabaseExecutionService {
             }
           }
         }
-        
+
         return lastResult;
       }
     } catch (error) {
@@ -268,7 +269,9 @@ export class DatabaseExecutionService {
       try {
         await this.prisma.$executeRawUnsafe(statement);
         successCount++;
-        this.logger.debug(`Successfully executed: ${statement.substring(0, 50)}...`);
+        this.logger.debug(
+          `Successfully executed: ${statement.substring(0, 50)}...`,
+        );
       } catch (err) {
         this.handleStatementError(statement, err, errors, warnings);
         this.logger.debug(
@@ -283,7 +286,9 @@ export class DatabaseExecutionService {
       try {
         await this.prisma.$executeRawUnsafe(statement);
         successCount++;
-        this.logger.debug(`Successfully executed: ${statement.substring(0, 50)}...`);
+        this.logger.debug(
+          `Successfully executed: ${statement.substring(0, 50)}...`,
+        );
       } catch (err) {
         this.handleStatementError(statement, err, errors, warnings);
         this.logger.debug(
@@ -418,7 +423,10 @@ export class DatabaseExecutionService {
 
     // Log a sample of statements for debugging
     if (statements.length > 0) {
-      this.logger.debug('First statement preview:', statements[0].substring(0, 100));
+      this.logger.debug(
+        'First statement preview:',
+        statements[0].substring(0, 100),
+      );
       if (statements.length > 1) {
         this.logger.debug(
           'Second statement preview:',
