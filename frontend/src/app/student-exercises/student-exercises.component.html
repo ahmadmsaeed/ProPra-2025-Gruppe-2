@@ -255,15 +255,20 @@
       <!-- Error Messages -->
       <mat-card class="error-card" *ngIf="(state$ | async)?.hasError">
         <mat-card-content>
-          <div class="error-message">
-            <mat-icon>error</mat-icon>
-            <span>{{ (state$ | async)?.errorMessage }}</span>
+          <div class="error-message-friendly">
+            <div class="error-icon">
+              <mat-icon>warning</mat-icon>
+            </div>
+            <div class="error-text">
+              <h4>Hinweis</h4>
+              <p>{{ (state$ | async)?.errorMessage }}</p>
+            </div>
           </div>
         </mat-card-content>
       </mat-card>
       
       <!-- Query Results -->
-      <mat-card class="results-card" *ngIf="hasExecutedQuery">
+      <mat-card class="results-card" *ngIf="hasExecutedQuery && !(state$ | async)?.hasError">
         <mat-card-header>
           <mat-card-title>
             Abfrageergebnis

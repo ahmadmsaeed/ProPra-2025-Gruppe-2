@@ -8,10 +8,13 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatTableModule } from '@angular/material/table';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
-import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { MatDialogModule } from '@angular/material/dialog';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatTabsModule } from '@angular/material/tabs';
+import { MatExpansionModule } from '@angular/material/expansion';
+import { MatDividerModule } from '@angular/material/divider';
 import { HttpClient, HttpEventType } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../services/auth.service';
@@ -20,6 +23,12 @@ import { DatabaseDetailsDialogComponent } from '../dialogs/database-details-dial
 import { EditDatabaseDialogComponent } from '../dialogs/edit-database-dialog.component';
 import { ErrorDialogComponent } from '../dialogs/error-dialog.component';
 import { SuccessDialogComponent } from '../success-dialog/success-dialog.component';
+import { CreateDatabaseDialogComponent } from './create-database-dialog.component';
+import { GenerateDatabaseDialogComponent } from './generate-database-dialog.component';
+import { BaseComponent } from '../shared/components/base.component';
+import { DatabaseSchemaService, DatabaseTable } from '../student-exercises/database-schema.service';
+import { TableDataService } from '../student-exercises/table-data.service';
+import { takeUntil } from 'rxjs/operators';
 
 @Component({
   selector: 'app-sql-import',
@@ -37,12 +46,16 @@ import { SuccessDialogComponent } from '../success-dialog/success-dialog.compone
     MatTableModule,
     MatProgressBarModule,
     MatDialogModule,
-    MatTooltipModule
+    MatTooltipModule,
+    MatMenuModule,
+    MatTabsModule,
+    MatExpansionModule,
+    MatDividerModule
   ],
   templateUrl: './sql-import.component.html',
   styleUrls: ['./sql-import.component.scss']
 })
-export class SqlImportComponent implements OnInit {
+export class SqlImportComponent extends BaseComponent implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef;
   
   databases: any[] = [];
@@ -59,14 +72,27 @@ export class SqlImportComponent implements OnInit {
   queryError: string | null = null;
   hasExecutedQuery = false;
   
+  // Table data viewing properties
+  selectedDatabaseForViewing: any = null;
+  activeTabForViewing: 'schema' | 'data' = 'schema';
+  databaseTables: DatabaseTable[] = [];
+  selectedTable: string | null = null;
+  tableData: any[] = [];
+  tableColumns: string[] = [];
+  tableSeedData: string[] = [];
+  isLoadingSchema = false;
+  isLoadingTableData = false;
+  
   constructor(
     public authService: AuthService,
     private http: HttpClient,
-    private snackBar: MatSnackBar,
-    private dialog: MatDialog,
     private sqlImportService: SqlImportService,
-    private cdr: ChangeDetectorRef
-  ) {}
+    private cdr: ChangeDetectorRef,
+    private databaseSchemaService: DatabaseSchemaService,
+    private tableDataService: TableDataService
+  ) {
+    super();
+  }
   ngOnInit(): void {
     // Force refresh databases when component initializes
     this.sqlImportService.refreshDatabases().subscribe({
@@ -76,7 +102,7 @@ export class SqlImportComponent implements OnInit {
         this.cdr.detectChanges();
       },
       error: (error) => {
-        this.showMessage('Fehler beim Laden der Datenbanken: ' + (error.error?.message || 'Unbekannter Fehler'));
+        this.handleError(error, 'Fehler beim Laden der Datenbanken');
         this.isLoading = false;
         this.cdr.detectChanges();
       }
@@ -97,7 +123,7 @@ export class SqlImportComponent implements OnInit {
           this.cdr.detectChanges();
         },
         error: (error) => {
-          this.showMessage('Fehler beim Laden der Datenbanken: ' + (error.error?.message || 'Unbekannter Fehler'));
+          this.handleError(error, 'Fehler beim Laden der Datenbanken');
           this.isLoading = false;
           this.cdr.detectChanges(); // Force UI update in case of error
         }
@@ -111,7 +137,7 @@ export class SqlImportComponent implements OnInit {
     }
   }  uploadFile() {
     if (!this.selectedFile) {
-      this.showMessage('Bitte wähle zuerst eine SQL-Datei aus');
+      this.showWarning('Bitte wähle zuerst eine SQL-Datei aus');
       return;
     }
     
@@ -161,7 +187,7 @@ export class SqlImportComponent implements OnInit {
                   // Show success message after database list has been updated
                   if (response && response.warnings && response.warnings.length > 0) {
                     // Show success dialog with warnings
-                    this.dialog.open(SuccessDialogComponent, {
+                    this.dialogService.openDialog(SuccessDialogComponent, {
                       width: '600px',
                       data: {
                         title: 'Import mit Warnungen',
@@ -171,7 +197,7 @@ export class SqlImportComponent implements OnInit {
                     });
                   } else {
                     // Show standard success dialog
-                    this.dialog.open(SuccessDialogComponent, {
+                    this.dialogService.openDialog(SuccessDialogComponent, {
                       width: '400px',
                       data: {
                         title: 'Import erfolgreich',
@@ -187,7 +213,7 @@ export class SqlImportComponent implements OnInit {
                   this.cdr.detectChanges();
                   
                   // Even if refresh fails, show success message for the upload
-                  this.dialog.open(SuccessDialogComponent, {
+                  this.dialogService.openDialog(SuccessDialogComponent, {
                     width: '400px',
                     data: {
                       title: 'Import erfolgreich',
@@ -226,7 +252,7 @@ export class SqlImportComponent implements OnInit {
             errorMessage = 'Die SQL-Datei konnte nicht importiert werden. Möglicherweise gibt es Konflikte mit bestehenden Daten.';
           }
 
-          this.dialog.open(ErrorDialogComponent, {
+          this.dialogService.openDialog(ErrorDialogComponent, {
             width: '600px', // Wider dialog to accommodate longer messages
             data: {
               title: 'Import-Fehler',
@@ -241,7 +267,7 @@ export class SqlImportComponent implements OnInit {
   }
   executeQuery() {
     if (!this.selectedDatabaseId || !this.sqlQuery) {
-      this.showMessage('Bitte wählen Sie eine Datenbank aus und geben Sie eine SQL-Abfrage ein');
+      this.showWarning('Bitte wählen Sie eine Datenbank aus und geben Sie eine SQL-Abfrage ein');
       return;
     }
 
@@ -259,10 +285,10 @@ export class SqlImportComponent implements OnInit {
           this.resultColumns = Object.keys(result[0] || {});
           // Show success message for SELECT queries
           if (this.sqlQuery.trim().toUpperCase().startsWith('SELECT')) {
-            this.showMessage(`Abfrage erfolgreich ausgeführt - ${result.length} Ergebnisse gefunden`);
+            this.showSuccess(`Abfrage erfolgreich ausgeführt - ${result.length} Ergebnisse gefunden`);
           } else {
             // Show success dialog for non-SELECT queries (INSERT, UPDATE, DELETE)
-            this.dialog.open(SuccessDialogComponent, {
+            this.dialogService.openDialog(SuccessDialogComponent, {
               width: '400px',
               data: {
                 title: 'Abfrage erfolgreich',
@@ -275,12 +301,12 @@ export class SqlImportComponent implements OnInit {
           // Empty array returned
           this.queryResult = [];
           this.resultColumns = [];
-          this.showMessage('Abfrage erfolgreich ausgeführt - keine Ergebnisse gefunden');
+          this.showInfo('Abfrage erfolgreich ausgeführt - keine Ergebnisse gefunden');
         } else {
           // Non-array result, maybe a message
           this.queryResult = [{ message: 'Abfrage erfolgreich ausgeführt' }];
           this.resultColumns = ['message'];
-          this.showMessage('Abfrage erfolgreich ausgeführt');
+          this.showSuccess('Abfrage erfolgreich ausgeführt');
         }
         this.isExecutingQuery = false;
         this.cdr.detectChanges(); // Force update after result received
@@ -299,7 +325,7 @@ export class SqlImportComponent implements OnInit {
         }
         
         // Show error dialog
-        this.dialog.open(ErrorDialogComponent, {
+        this.dialogService.openDialog(ErrorDialogComponent, {
           width: '500px',
           data: {
             title: 'SQL-Abfrage fehlgeschlagen',
@@ -322,23 +348,27 @@ export class SqlImportComponent implements OnInit {
           seedData: database.seedData || ''
         };
         
-        const dialogRef = this.dialog.open(DatabaseDetailsDialogComponent, {
+        const dialogRef = this.dialogService.openDialog(DatabaseDetailsDialogComponent, {
           width: '800px',
           data
         });
       },
       error: (error) => {
-        this.showMessage('Fehler beim Laden der Datenbankdetails: ' + (error.error?.message || 'Unbekannter Fehler'));
+        this.handleError(error, 'Fehler beim Laden der Datenbankdetails');
       }
     });
   }
+  
+  viewDatabaseWithTables(db: any) {
+    this.viewDatabaseTables(db);
+  }
   editDatabase(db: any) {
-    const dialogRef = this.dialog.open(EditDatabaseDialogComponent, {
+    const dialogRef = this.dialogService.openDialog(EditDatabaseDialogComponent, {
       width: '600px',
       data: db
     });
 
-    dialogRef.afterClosed().subscribe(result => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((result: any) => {
       if (result) {
         // Force refresh of the database list
         this.sqlImportService.refreshDatabases().subscribe({
@@ -346,19 +376,12 @@ export class SqlImportComponent implements OnInit {
             this.databases = databases;
             this.cdr.detectChanges();
             
-            // Show success dialog
-            this.dialog.open(SuccessDialogComponent, {
-              width: '400px',
-              data: {
-                title: 'Aktualisierung erfolgreich',
-                message: `Datenbank "${db.name}" wurde erfolgreich aktualisiert.`,
-                buttonText: 'OK'
-              }
-            });
+            // Show success message like user update
+            this.showSuccess('Datenbank erfolgreich aktualisiert');
           },
           error: (err) => {
             // Even if refresh fails, show success message for the update
-            this.showMessage(`Datenbank "${db.name}" erfolgreich aktualisiert. Die Liste konnte jedoch nicht aktualisiert werden.`);
+            this.showSuccess('Datenbank erfolgreich aktualisiert');
             this.cdr.detectChanges();
           }
         });      }
@@ -385,20 +408,13 @@ export class SqlImportComponent implements OnInit {
               this.isLoading = false;
               this.cdr.detectChanges();
               
-              // Show success dialog
-              this.dialog.open(SuccessDialogComponent, {
-                width: '400px',
-                data: {
-                  title: 'Löschvorgang erfolgreich',
-                  message: `Datenbank "${db.name}" wurde erfolgreich gelöscht.`,
-                  buttonText: 'OK'
-                }
-              });
+              // Show success message like user deletion
+              this.showSuccess('Datenbank erfolgreich gelöscht');
             },
             error: (err) => {
               console.error('Failed to refresh databases after deletion:', err);
               // Even if refresh fails, show success message for the deletion
-              this.showMessage(`Datenbank "${db.name}" erfolgreich gelöscht. Die Liste konnte jedoch nicht aktualisiert werden.`);
+              this.showSuccess('Datenbank erfolgreich gelöscht');
               this.isLoading = false;
               this.cdr.detectChanges();
             }
@@ -409,32 +425,129 @@ export class SqlImportComponent implements OnInit {
           this.isLoading = false;
           this.cdr.detectChanges();
           
-          // Always show the proper error dialog for database constraint errors
-          this.dialog.open(ErrorDialogComponent, {
-            width: '400px',
-            data: {
-              title: 'Fehler beim Löschen',
-              message: error.error?.message || 
-                `Die Datenbank "${db.name}" konnte nicht gelöscht werden. Möglicherweise wird sie von einer Übung verwendet.`,
-              buttonText: 'Verstanden'
-            }
-          });
+          // Show error message like user deletion pattern
+          this.showError('Fehler beim Löschen der Datenbank');
         }
       });
     }
-  }
-
-  private showMessage(message: string) {
-    this.snackBar.open(message, 'Schließen', {
-      duration: 5000,
-      horizontalPosition: 'center',
-      verticalPosition: 'bottom'
-    });
   }
 
   canEdit(db: any): boolean {
     const user = this.authService.getCurrentUser();
     return this.authService.isTeacher() || 
            (this.authService.isTutor() && user?.id === db.authorId);
+  }
+
+  openCreateDatabaseDialog(): void {
+    const dialogRef = this.dialogService.openDialog(CreateDatabaseDialogComponent, {
+      width: '700px',
+      data: { mode: 'create' }
+    });
+
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((result: any) => {
+      if (result) {
+        // Database was created successfully
+        this.sqlImportService.refreshDatabases().subscribe({
+          next: (databases) => {
+            this.databases = databases;
+            this.cdr.detectChanges();
+          },
+          error: (err) => {
+            console.error('Failed to refresh databases after creation:', err);
+          }
+        });
+      }
+    });
+  }
+
+  openGenerateDatabaseDialog(): void {
+    const dialogRef = this.dialogService.openDialog(GenerateDatabaseDialogComponent, {
+      width: '800px',
+      maxHeight: '90vh'
+    });
+
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((result: any) => {
+      if (result) {
+        // Database was generated and created successfully
+        this.sqlImportService.refreshDatabases().subscribe({
+          next: (databases) => {
+            this.databases = databases;
+            this.cdr.detectChanges();
+          },
+          error: (err) => {
+            console.error('Failed to refresh databases after generation:', err);
+          }
+        });
+      }
+    });
+  }
+  
+  // Table data viewing methods
+  viewDatabaseTables(database: any): void {
+    this.selectedDatabaseForViewing = database;
+    this.activeTabForViewing = 'schema';
+    this.databaseTables = [];
+    this.selectedTable = null;
+    this.tableData = [];
+    this.tableColumns = [];
+    this.tableSeedData = [];
+    
+    this.loadDatabaseSchema(database.id);
+  }
+  
+  loadDatabaseSchema(databaseId: number): void {
+    this.isLoadingSchema = true;
+    this.databaseSchemaService.loadDatabaseSchema(databaseId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: ({ tables, seedData }) => {
+          this.databaseTables = tables;
+          this.isLoadingSchema = false;
+          
+          if (tables.length > 0) {
+            this.viewTableData(tables[0].tableName);
+          }
+          
+          this.cdr.markForCheck();
+        },
+        error: (error) => {
+          this.handleError(error, 'Fehler beim Laden des Datenbankschemas');
+          this.isLoadingSchema = false;
+        }
+      });
+  }
+  
+  viewTableData(tableName: string): void {
+    if (!this.selectedDatabaseForViewing) return;
+    
+    this.selectedTable = tableName;
+    this.isLoadingTableData = true;
+    
+    this.tableDataService.loadTableData(this.selectedDatabaseForViewing.id, tableName)
+      .pipe(
+        takeUntil(this.destroy$)
+      )
+      .subscribe({
+        next: ({ data, columns, seedData }) => {
+          this.tableData = data;
+          this.tableColumns = columns;
+          this.tableSeedData = seedData;
+          this.isLoadingTableData = false;
+          this.cdr.markForCheck();
+        },
+        error: (error) => {
+          this.handleError(error, 'Fehler beim Laden der Tabellendaten');
+          this.isLoadingTableData = false;
+        }
+      });
+  }
+  
+  closeDatabaseView(): void {
+    this.selectedDatabaseForViewing = null;
+    this.databaseTables = [];
+    this.selectedTable = null;
+    this.tableData = [];
+    this.tableColumns = [];
+    this.tableSeedData = [];
   }
 }

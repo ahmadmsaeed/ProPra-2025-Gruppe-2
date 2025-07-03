@@ -1,10 +1,24 @@
 ﻿<div class="container">
   <div class="header">
     <h1>Übungsverwaltung</h1>
-    <button mat-raised-button color="primary" (click)="openCreateDialog()">
-      <mat-icon>add</mat-icon>
-      Neue Übung erstellen
-    </button>
+    <div class="header-actions">
+      <button mat-raised-button color="primary" [matMenuTriggerFor]="createMenu">
+        <mat-icon>add</mat-icon>
+        Neue Übung
+        <mat-icon>arrow_drop_down</mat-icon>
+      </button>
+      
+      <mat-menu #createMenu="matMenu">
+        <button mat-menu-item (click)="openCreateDialog()">
+          <mat-icon>edit</mat-icon>
+          <span>Manuell erstellen</span>
+        </button>
+        <button mat-menu-item (click)="openGenerateDialog()">
+          <mat-icon>auto_awesome</mat-icon>
+          <span>Mit KI generieren</span>
+        </button>
+      </mat-menu>
+    </div>
   </div>
 
   <div class="exercises-list">

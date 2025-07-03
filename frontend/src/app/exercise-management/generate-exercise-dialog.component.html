@@ -1,0 +1,201 @@
+<h2 mat-dialog-title>Aufgabe automatisch generieren</h2>
+
+<mat-stepper [linear]="true" #stepper>
+  <!-- Step 1: Anfrage eingeben -->
+  <mat-step [stepControl]="requestForm" label="Anfrage eingeben">
+    <form [formGroup]="requestForm">
+      <mat-dialog-content>
+        <p class="instruction-text">
+          Beschreiben Sie, welche Art von SQL-Aufgabe Sie erstellen möchten, oder wählen Sie ein SQL-Konzept aus. Die KI wird basierend auf Ihrer Eingabe eine vollständige Übung generieren.
+        </p>
+
+        <mat-form-field appearance="fill" class="full-width">
+          <mat-label>Ihre Anfrage (optional)</mat-label>
+          <textarea matInput 
+                    formControlName="prompt" 
+                    placeholder="z.B. 'Ich möchte eine einfache Aufgabe zum Löschen von Spalten' oder 'Erstelle eine mittelschwere JOIN-Aufgabe mit mehreren Tabellen'"
+                    rows="4"></textarea>
+          <mat-hint align="start">
+            <span [class.text-success]="requestForm.get('prompt')?.value?.length >= 10"
+                  [class.text-warning]="requestForm.get('prompt')?.value?.length > 0 && requestForm.get('prompt')?.value?.length < 10">
+              {{ requestForm.get('prompt')?.value?.length || 0 }} Zeichen
+              <span *ngIf="requestForm.get('prompt')?.value?.length > 0 && requestForm.get('prompt')?.value?.length < 10">
+                (mindestens 10 für detaillierte Beschreibung)
+              </span>
+            </span>
+          </mat-hint>
+          <mat-error *ngIf="requestForm.hasError('promptTooShort')">
+            Wenn Sie Text eingeben, sind mindestens 10 Zeichen erforderlich
+          </mat-error>
+        </mat-form-field>
+
+        <mat-form-field appearance="fill" class="full-width">
+          <mat-label>Datenbank</mat-label>
+          <mat-select formControlName="databaseSchemaId" required>
+            <mat-option *ngFor="let database of databases" [value]="database.id">
+              {{ database.name }}
+            </mat-option>
+          </mat-select>
+          <mat-error *ngIf="requestForm.get('databaseSchemaId')?.hasError('required')">
+            Bitte wählen Sie eine Datenbank aus
+          </mat-error>
+        </mat-form-field>
+
+        <div class="form-row">
+          <mat-form-field appearance="fill" class="half-width">
+            <mat-label>Schwierigkeitsgrad</mat-label>
+            <mat-select formControlName="difficulty">
+              <mat-option *ngFor="let option of difficultyOptions" [value]="option.value">
+                {{ option.label }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="fill" class="half-width">
+            <mat-label>SQL-Konzept (alternative)</mat-label>
+            <mat-select formControlName="concept">
+              <mat-option value="">Kein spezifisches Konzept</mat-option>
+              <mat-option *ngFor="let option of conceptOptions" [value]="option.value">
+                {{ option.label }}
+              </mat-option>
+            </mat-select>
+            <mat-hint>Alternativ zu Textbeschreibung</mat-hint>
+          </mat-form-field>
+        </div>
+
+        <!-- Debug status -->
+        <div class="debug-status" *ngIf="!requestForm.valid">
+          <small>
+            <span *ngIf="requestForm.hasError('promptOrConceptRequired')">
+              ⚠️ Bitte geben Sie entweder eine Textbeschreibung oder wählen Sie ein SQL-Konzept
+            </span>
+            <span *ngIf="requestForm.hasError('promptTooShort')">
+              ⚠️ Textbeschreibung muss mindestens 10 Zeichen haben ({{ requestForm.get('prompt')?.value?.length || 0 }}/10)
+            </span>
+            <span *ngIf="requestForm.get('databaseSchemaId')?.hasError('required')">
+              ⚠️ Bitte Datenbank auswählen
+            </span>
+          </small>
+        </div>
+
+        <div *ngIf="errorMessage" class="error-message">
+          <mat-icon>error</mat-icon>
+          {{ errorMessage }}
+        </div>
+      </mat-dialog-content>
+
+      <div class="form-actions">
+        <button mat-raised-button 
+                [color]="requestForm.valid && !isGenerating ? 'primary' : ''"
+                [class.disabled-button]="!requestForm.valid || isGenerating"
+                [disabled]="!requestForm.valid || isGenerating"
+                (click)="generateExercise()">
+          <mat-icon>auto_awesome</mat-icon>
+          Aufgabe generieren
+        </button>
+      </div>
+
+      <mat-progress-bar *ngIf="isGenerating" mode="indeterminate"></mat-progress-bar>
+    </form>
+  </mat-step>
+
+  <!-- Step 2: Generierte Aufgabe prüfen -->
+  <mat-step [stepControl]="confirmForm" label="Aufgabe prüfen" [optional]="false">
+    <form [formGroup]="confirmForm" *ngIf="generatedExercise">
+      <mat-dialog-content>
+        <p class="instruction-text">
+          Prüfen Sie die generierte Aufgabe und passen Sie sie bei Bedarf an, bevor Sie sie final erstellen.
+        </p>
+
+        <!-- Generierungsinfo -->
+        <mat-card class="generation-info">
+          <mat-card-content>
+            <h4>Generiert für:</h4>
+            <div class="info-row">
+              <span class="label">Datenbank:</span>
+              <span>{{ getSelectedDatabaseName() }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Schwierigkeit:</span>
+              <span>{{ getSelectedDifficultyLabel() }}</span>
+            </div>
+            <div class="info-row">
+              <span class="label">Konzept:</span>
+              <span>{{ getSelectedConceptLabel() }}</span>
+            </div>
+            <div class="info-row" *ngIf="generatedExercise.concepts.length > 0">
+              <span class="label">Behandelte Konzepte:</span>
+              <span class="concepts">
+                <mat-chip-listbox>
+                  <mat-chip *ngFor="let concept of generatedExercise.concepts">
+                    {{ concept }}
+                  </mat-chip>
+                </mat-chip-listbox>
+              </span>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <mat-form-field appearance="fill" class="full-width">
+          <mat-label>Titel</mat-label>
+          <input matInput formControlName="title" required>
+        </mat-form-field>
+
+        <mat-form-field appearance="fill" class="full-width">
+          <mat-label>Aufgabenbeschreibung</mat-label>
+          <textarea matInput formControlName="description" rows="4" required></textarea>
+        </mat-form-field>
+
+        <mat-form-field appearance="fill" class="full-width">
+          <mat-label>Musterlösung (SQL)</mat-label>
+          <textarea matInput formControlName="solutionQuery" rows="4" required></textarea>
+        </mat-form-field>
+
+        <mat-form-field appearance="fill" class="full-width">
+          <mat-label>Startcode für Studenten (optional)</mat-label>
+          <textarea matInput formControlName="initialQuery" rows="2"></textarea>
+          <mat-hint>Z.B. "SELECT " für Anfänger</mat-hint>
+        </mat-form-field>
+
+        <!-- Erklärung der Lösung -->
+        <mat-card class="explanation-card" *ngIf="generatedExercise.explanation">
+          <mat-card-header>
+            <mat-card-title>
+              <mat-icon>lightbulb</mat-icon>
+              Erklärung der Lösung
+            </mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <p>{{ generatedExercise.explanation }}</p>
+          </mat-card-content>
+        </mat-card>
+
+        <div *ngIf="errorMessage" class="error-message">
+          <mat-icon>error</mat-icon>
+          {{ errorMessage }}
+        </div>
+      </mat-dialog-content>
+
+      <mat-dialog-actions align="end">
+        <button mat-button 
+                color="accent"
+                [disabled]="isGenerating"
+                (click)="regenerateExercise()">
+          <mat-icon>refresh</mat-icon>
+          Neu generieren
+        </button>
+        <button mat-raised-button 
+                color="primary"
+                [disabled]="!confirmForm.valid"
+                (click)="createExercise()">
+          <mat-icon>check</mat-icon>
+          Aufgabe erstellen
+        </button>
+      </mat-dialog-actions>
+    </form>
+  </mat-step>
+</mat-stepper>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">Abbrechen</button>
+</mat-dialog-actions>

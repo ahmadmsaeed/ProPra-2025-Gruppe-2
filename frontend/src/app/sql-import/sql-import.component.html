@@ -41,7 +41,30 @@
     <!-- Database List -->
     <mat-card class="database-list-card">
       <mat-card-content>
-        <h2>Verfügbare Datenbanken</h2>
+        <div class="database-header">
+          <h2>Verfügbare Datenbanken</h2>
+          <div *ngIf="authService.isTeacher() || authService.isTutor()" class="database-actions">
+            <button 
+              mat-icon-button 
+              color="primary" 
+              [matMenuTriggerFor]="createMenu"
+              matTooltip="Neue Datenbank erstellen"
+              class="create-button"
+            >
+              <mat-icon>add</mat-icon>
+            </button>
+            <mat-menu #createMenu="matMenu">
+              <button mat-menu-item (click)="openCreateDatabaseDialog()">
+                <mat-icon>storage</mat-icon>
+                <span>Manuell erstellen</span>
+              </button>
+              <button mat-menu-item (click)="openGenerateDatabaseDialog()">
+                <mat-icon>auto_awesome</mat-icon>
+                <span>Mit KI generieren</span>
+              </button>
+            </mat-menu>
+          </div>
+        </div>
         
         <div *ngIf="isLoading" class="loading-indicator">
           <mat-progress-bar mode="indeterminate"></mat-progress-bar>
@@ -67,6 +90,9 @@
             <td mat-cell *matCellDef="let db">
               <button mat-icon-button color="primary" (click)="viewDatabase(db)" matTooltip="Details anzeigen">
                 <mat-icon>visibility</mat-icon>
+              </button>
+              <button mat-icon-button color="accent" (click)="viewDatabaseWithTables(db)" matTooltip="Tabellendaten anzeigen">
+                <mat-icon>table_chart</mat-icon>
               </button>
               <button mat-icon-button color="primary" (click)="editDatabase(db)" 
                       *ngIf="canEdit(db)" 
@@ -160,4 +186,151 @@
       </div>
     </mat-card-content>
   </mat-card>
+
+  <!-- Database Table Data Viewer -->
+  <mat-card *ngIf="selectedDatabaseForViewing" class="table-viewer-card">
+    <mat-card-header>
+      <mat-card-title>
+        <div class="database-viewer-header">
+          <span>Tabellendaten: {{ selectedDatabaseForViewing.name }}</span>
+          <button mat-icon-button (click)="closeDatabaseView()" matTooltip="Schließen">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+      </mat-card-title>
+    </mat-card-header>
+    
+    <mat-card-content>
+      <div class="database-explorer">
+        <mat-tab-group [selectedIndex]="activeTabForViewing === 'schema' ? 0 : 1" 
+                       (selectedTabChange)="activeTabForViewing = $event.index === 0 ? 'schema' : 'data'">
+          
+          <!-- Schema Tab -->
+          <mat-tab label="Datenbank Schema">
+            <div class="tab-content">
+              <div *ngIf="isLoadingSchema" class="loading-container">
+                <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+                <p>Lade Datenbankschema...</p>
+              </div>
+              
+              <div *ngIf="!isLoadingSchema && databaseTables.length > 0" class="schema-tables">
+                <h3>Verfügbare Tabellen</h3>
+                
+                <mat-accordion>
+                  <mat-expansion-panel *ngFor="let table of databaseTables">
+                    <mat-expansion-panel-header>
+                      <mat-panel-title>
+                        <strong>{{ table.tableName }}</strong>
+                      </mat-panel-title>
+                    </mat-expansion-panel-header>
+                    
+                    <table class="schema-table">
+                      <thead>
+                        <tr>
+                          <th>Spalte</th>
+                          <th>Typ</th>
+                          <th>Constraints</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let column of table.columns">
+                          <td>{{ column.name }}</td>
+                          <td>{{ column.type }}</td>
+                          <td>{{ column.constraints }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    
+                    <div class="table-actions">
+                      <button mat-button color="primary" 
+                              (click)="viewTableData(table.tableName); activeTabForViewing = 'data'">
+                        <mat-icon>visibility</mat-icon>
+                        Daten anzeigen
+                      </button>
+                    </div>
+                  </mat-expansion-panel>
+                </mat-accordion>
+              </div>
+              
+              <div *ngIf="!isLoadingSchema && databaseTables.length === 0" class="no-tables">
+                <mat-icon>info</mat-icon>
+                <p>Keine Tabellen in dieser Datenbank gefunden.</p>
+              </div>
+            </div>
+          </mat-tab>
+          
+          <!-- Data Tab -->
+          <mat-tab label="Tabellendaten">
+            <div class="tab-content">
+              <div *ngIf="!selectedTable" class="no-table-selected">
+                <mat-icon>table_chart</mat-icon>
+                <p>Wähle eine Tabelle aus dem Schema-Tab, um die Daten anzuzeigen.</p>
+              </div>
+              
+              <div *ngIf="selectedTable && isLoadingTableData" class="loading-container">
+                <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+                <p>Lade Daten aus Tabelle "{{ selectedTable }}"...</p>
+              </div>
+              
+              <div *ngIf="selectedTable && !isLoadingTableData" class="table-data">
+                <!-- Table selection if multiple tables available -->
+                <div class="table-selector" *ngIf="databaseTables.length > 1">
+                  <mat-form-field appearance="fill">
+                    <mat-label>Tabelle auswählen</mat-label>
+                    <mat-select [(value)]="selectedTable" (selectionChange)="viewTableData($event.value)">
+                      <mat-option *ngFor="let table of databaseTables" [value]="table.tableName">
+                        {{ table.tableName }}
+                      </mat-option>
+                    </mat-select>
+                  </mat-form-field>
+                </div>
+                
+                <h3>Daten aus "{{ selectedTable }}"</h3>
+                
+                <!-- Current table data display -->
+                <mat-accordion class="data-sections">
+                  <mat-expansion-panel expanded="true">
+                    <mat-expansion-panel-header>
+                      <mat-panel-title>
+                        <strong>Aktuelle Tabellendaten ({{ tableData.length }} Einträge)</strong>
+                      </mat-panel-title>
+                    </mat-expansion-panel-header>
+                    
+                    <table *ngIf="tableData.length > 0" mat-table [dataSource]="tableData" class="mat-elevation-z2">
+                      <ng-container *ngFor="let column of tableColumns" [matColumnDef]="column">
+                        <th mat-header-cell *matHeaderCellDef>{{ column }}</th>
+                        <td mat-cell *matCellDef="let element">{{ element[column] }}</td>
+                      </ng-container>
+                      
+                      <tr mat-header-row *matHeaderRowDef="tableColumns"></tr>
+                      <tr mat-row *matRowDef="let row; columns: tableColumns;"></tr>
+                    </table>
+                    
+                    <div *ngIf="tableData.length === 0" class="empty-table">
+                      <mat-icon>info</mat-icon>
+                      <p>Die Tabelle "{{ selectedTable }}" enthält keine Daten.</p>
+                    </div>
+                  </mat-expansion-panel>
+                  
+                  <!-- Seed Data Section -->
+                  <mat-expansion-panel *ngIf="tableSeedData && tableSeedData.length > 0">
+                    <mat-expansion-panel-header>
+                      <mat-panel-title>
+                        <strong>Seed-Daten (SQL INSERT Statements)</strong>
+                      </mat-panel-title>
+                    </mat-expansion-panel-header>
+                    
+                    <div class="seed-data-statements">
+                      <pre *ngFor="let statement of tableSeedData">{{ statement }}</pre>
+                    </div>
+                  </mat-expansion-panel>
+                </mat-accordion>
+              </div>
+            </div>
+          </mat-tab>
+        </mat-tab-group>
+      </div>
+    </mat-card-content>
+  </mat-card>
+
 </div>
