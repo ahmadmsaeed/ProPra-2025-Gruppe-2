@@ -117,7 +117,18 @@ export class ExerciseManagementComponent extends BaseComponent implements OnInit
           this.showSuccess('Übung erfolgreich gelöscht');
         },
         error: (error) => {
-          this.handleError(error, 'Fehler beim Löschen der Übung');
+          // Check for specific error messages
+          let errorMessage = 'Fehler beim Löschen der Übung';
+          if (error?.error?.message) {
+            const serverMessage = error.error.message;
+            if (serverMessage.includes('eingereicht wurden') || serverMessage.includes('Lösungen')) {
+              errorMessage = 'Fehler beim Löschen der Übung: Aufgabe wird von eingereichten Lösungen verwendet';
+            } else {
+              errorMessage = `Fehler beim Löschen der Übung: ${serverMessage}`;
+            }
+          }
+          
+          this.showError(errorMessage);
         }
       });
     }

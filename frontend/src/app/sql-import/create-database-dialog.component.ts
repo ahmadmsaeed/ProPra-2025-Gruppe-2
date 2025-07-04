@@ -30,7 +30,7 @@ export interface DatabaseDialogData {
   template: `
     <h2 mat-dialog-title>
       <mat-icon>storage</mat-icon>
-      {{ data?.mode === 'edit' ? 'Datenbank bearbeiten' : 'Neue Datenbank erstellen' }}
+      {{ data.mode === 'edit' ? 'Datenbank bearbeiten' : 'Neue Datenbank erstellen' }}
     </h2>
 
     <mat-dialog-content>
@@ -83,8 +83,8 @@ export interface DatabaseDialogData {
         [disabled]="databaseForm.invalid || isCreating"
         (click)="onSave()"
       >
-        <mat-icon>{{ data?.mode === 'edit' ? 'save' : 'add' }}</mat-icon>
-        {{ data?.mode === 'edit' ? 'Speichern' : 'Erstellen' }}
+        <mat-icon>{{ data.mode === 'edit' ? 'save' : 'add' }}</mat-icon>
+        {{ data.mode === 'edit' ? 'Speichern' : 'Erstellen' }}
       </button>
     </mat-dialog-actions>
   `,

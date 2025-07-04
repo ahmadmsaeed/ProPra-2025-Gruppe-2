@@ -425,8 +425,16 @@ export class SqlImportComponent extends BaseComponent implements OnInit {
           this.isLoading = false;
           this.cdr.detectChanges();
           
-          // Show error message like user deletion pattern
-          this.showError('Fehler beim Löschen der Datenbank');
+          // Check for specific error messages
+          let errorMessage = 'Fehler beim Löschen der Datenbank';
+          if (error?.error?.message) {
+            const serverMessage = error.error.message;
+            if (serverMessage.includes('verwendet wird') || serverMessage.includes('Aufgaben')) {
+              errorMessage = 'Fehler beim Löschen der Datenbank: Datenbank wird von einer Aufgabe verwendet';
+            }
+          }
+          
+          this.showError(errorMessage);
         }
       });
     }
