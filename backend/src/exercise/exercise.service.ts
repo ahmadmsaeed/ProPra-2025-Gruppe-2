@@ -246,8 +246,18 @@ export class ExerciseService implements IExerciseService {
       throw new ForbiddenException('You can only delete your own exercises');
     }
 
-    return this.prisma.exercise.delete({
-      where: { id },
-    });
+    try {
+      return this.prisma.exercise.delete({
+        where: { id },
+      });
+    } catch (error) {
+      // Handle foreign key constraint error
+      if (error.code === 'P2003' && error.meta?.field_name?.includes('Submission_exerciseId_fkey')) {
+        throw new BadRequestException(
+          'Die Aufgabe kann nicht gelöscht werden, da bereits Lösungen von Studenten eingereicht wurden.',
+        );
+      }
+      throw error;
+    }
   }
 }

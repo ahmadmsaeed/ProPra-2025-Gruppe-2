@@ -5,14 +5,15 @@ import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCardModule } from '@angular/material/card';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatDialogModule } from '@angular/material/dialog';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { AuthService } from '../services/auth.service';
 import { AdminService, User } from '../services/admin.service';
 import { Observable, catchError, map, of, forkJoin, Subject, takeUntil, finalize } from 'rxjs';
 import { UserDialogComponent } from '../user-dialog/user-dialog.component';
 import { environment } from '../../environments/environment';
+import { BaseComponent } from '../shared/components/base.component';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -31,8 +32,8 @@ import { environment } from '../../environments/environment';
   styleUrls: ['./admin-dashboard.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AdminDashboardComponent implements OnInit {
-  private destroy$ = new Subject<void>();
+export class AdminDashboardComponent extends BaseComponent implements OnInit {
+  protected override destroy$ = new Subject<void>();
 
   teachers: User[] = [];
   tutors: User[] = [];
@@ -47,10 +48,10 @@ export class AdminDashboardComponent implements OnInit {
   constructor(
     public authService: AuthService,
     private adminService: AdminService,
-    private snackBar: MatSnackBar,
-    private dialog: MatDialog,
     private cdr: ChangeDetectorRef
-  ) {}
+  ) {
+    super();
+  }
 
   ngOnInit(): void {
     if (this.authService.isTeacher()) {
@@ -62,9 +63,10 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
-  ngOnDestroy(): void {
+  override ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    super.ngOnDestroy();
   }
 
   loadData(): void {
@@ -74,21 +76,21 @@ export class AdminDashboardComponent implements OnInit {
 
     const teachersRequest = this.adminService.getTeachers().pipe(
       catchError((err: HttpErrorResponse) => {
-        this.handleError('Failed to load teachers', err);
+        this.handleError(err, 'Failed to load teachers');
         return of([]);
       })
     );
 
     const tutorsRequest = this.adminService.getTutors().pipe(
       catchError((err: HttpErrorResponse) => {
-        this.handleError('Failed to load tutors', err);
+        this.handleError(err, 'Failed to load tutors');
         return of([]);
       })
     );
 
     const studentsRequest = this.adminService.getStudents().pipe(
       catchError((err: HttpErrorResponse) => {
-        this.handleError('Failed to load students', err);
+        this.handleError(err, 'Failed to load students');
         return of([]);
       })
     );
@@ -115,7 +117,7 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   openAddUserDialog(): void {
-    const dialogRef = this.dialog.open(UserDialogComponent, {
+    const dialogRef = this.dialogService.openDialog(UserDialogComponent, {
       width: '400px',
       data: {
         title: 'Neuen Benutzer hinzufügen',
@@ -126,23 +128,25 @@ export class AdminDashboardComponent implements OnInit {
 
     dialogRef.afterClosed()
       .pipe(takeUntil(this.destroy$))
-      .subscribe(result => {
+      .subscribe((result: any) => {
         if (result) {
           this.adminService.createUser(result)
             .pipe(takeUntil(this.destroy$))
             .subscribe({
               next: () => {
-                this.snackBar.open('Benutzer erfolgreich erstellt', 'Schließen', { duration: 3000 });
+                this.showSuccess('Benutzer erfolgreich erstellt');
                 this.loadData();
               },
-              error: (err: HttpErrorResponse) => this.handleError('Fehler beim Erstellen des Benutzers', err)
+              error: (err: HttpErrorResponse) => {
+                super.handleError(err, 'Fehler beim Erstellen des Benutzers');
+              }
             });
         }
       });
   }
 
   editUser(user: User): void {
-    const dialogRef = this.dialog.open(UserDialogComponent, {
+    const dialogRef = this.dialogService.openDialog(UserDialogComponent, {
       width: '400px',
       data: {
         title: `Benutzer bearbeiten: ${user.name}`,
@@ -153,16 +157,16 @@ export class AdminDashboardComponent implements OnInit {
 
     dialogRef.afterClosed()
       .pipe(takeUntil(this.destroy$))
-      .subscribe(result => {
+      .subscribe((result: any) => {
         if (result) {
           this.adminService.updateUser(user.id, result)
             .pipe(takeUntil(this.destroy$))
             .subscribe({
               next: () => {
-                this.snackBar.open('Benutzer erfolgreich aktualisiert', 'Schließen', { duration: 3000 });
+                this.showSuccess('Benutzer erfolgreich aktualisiert');
                 this.loadData();
               },
-              error: (err: HttpErrorResponse) => this.handleError('Fehler beim Aktualisieren des Benutzers', err)
+              error: (err: HttpErrorResponse) => super.handleError(err, 'Fehler beim Aktualisieren des Benutzers')
             });
         }
       });
@@ -174,10 +178,10 @@ export class AdminDashboardComponent implements OnInit {
         .pipe(takeUntil(this.destroy$))
         .subscribe({
           next: () => {
-            this.snackBar.open('Benutzer erfolgreich gelöscht', 'Schließen', { duration: 3000 });
+            this.showSuccess('Benutzer erfolgreich gelöscht');
             this.loadData();
           },
-          error: (err: HttpErrorResponse) => this.handleError('Fehler beim Löschen des Benutzers', err)
+          error: (err: HttpErrorResponse) => this.handleError(err, 'Fehler beim Löschen des Benutzers')
         });
     }
   }
@@ -187,10 +191,10 @@ export class AdminDashboardComponent implements OnInit {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
-          this.snackBar.open('User blocked successfully.', 'Close', { duration: 3000 });
+          this.showSuccess('Benutzer erfolgreich blockiert');
           this.refreshUserData(userId, true);
         },
-        error: (err: HttpErrorResponse) => this.handleError('Failed to block user', err),
+        error: (err: HttpErrorResponse) => this.handleError(err, 'Failed to block user'),
       });
   }
 
@@ -199,10 +203,10 @@ export class AdminDashboardComponent implements OnInit {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: () => {
-          this.snackBar.open('User unblocked successfully.', 'Close', { duration: 3000 });
+          this.showSuccess('Benutzer erfolgreich entsperrt');
           this.refreshUserData(userId, false);
         },
-        error: (err: HttpErrorResponse) => this.handleError('Failed to unblock user', err),
+        error: (err: HttpErrorResponse) => this.handleError(err, 'Failed to unblock user'),
       });
   }
 
@@ -211,14 +215,6 @@ export class AdminDashboardComponent implements OnInit {
     this.teachers = this.teachers.map(u => u.id === userId ? { ...u, isBlocked } : u);
     this.tutors = this.tutors.map(u => u.id === userId ? { ...u, isBlocked } : u);
     this.students = this.students.map(u => u.id === userId ? { ...u, isBlocked } : u);
-    this.cdr.markForCheck();
-  }
-
-  private handleError(message: string, error: HttpErrorResponse): void {
-    console.error(message, error);
-    this.error = `${message}: ${error.error?.message || error.statusText}`;
-    this.snackBar.open(this.error, 'Close', { duration: 5000 });
-    this.loading = false;
     this.cdr.markForCheck();
   }
 }

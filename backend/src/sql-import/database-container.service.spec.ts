@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ContainerConnectionService } from './container-connection.service';
 import { ContainerManagementService } from './container-management.service';
 import { ContainerCleanupService } from './container-cleanup.service';
+import * as Docker from 'dockerode';
 
 describe('DatabaseContainerService', () => {
   let service: DatabaseContainerService;
@@ -38,16 +39,16 @@ describe('DatabaseContainerService', () => {
   };
 
   // Mock Docker.Container with minimal required properties
-  const mockContainer = {
+  const mockContainer: Partial<Docker.Container> = {
     id: 'container-123',
     start: jest.fn(),
     stop: jest.fn(),
     remove: jest.fn(),
-  } as any;
+  };
 
   beforeEach(async () => {
     prisma = { database: { findUnique: jest.fn() } };
-    
+
     connectionService = {
       executeQueryOnContainer: jest.fn(),
       copyDatabaseToContainer: jest.fn(),
@@ -81,7 +82,8 @@ describe('DatabaseContainerService', () => {
     }).compile();
 
     service = module.get<DatabaseContainerService>(DatabaseContainerService);
-  });  it('should be defined', () => {
+  });
+  it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
@@ -119,11 +121,11 @@ describe('DatabaseContainerService', () => {
 
       // Create container first time
       const firstResult = await service.createTemporaryContainer(1, 1);
-      
+
       // Reset mocks
       managementService.reserveAvailablePort.mockClear();
       managementService.createContainer.mockClear();
-      
+
       // Try to create again - should return existing
       const secondResult = await service.createTemporaryContainer(1, 1);
 
@@ -135,11 +137,15 @@ describe('DatabaseContainerService', () => {
 
     it('should handle container creation failure', async () => {
       managementService.reserveAvailablePort.mockResolvedValue(5432);
-      managementService.createContainer.mockRejectedValue(new Error('Docker error'));
+      managementService.createContainer.mockRejectedValue(
+        new Error('Docker error'),
+      );
       managementService.releasePort.mockReturnValue(undefined);
 
-      await expect(service.createTemporaryContainer(1, 1)).rejects.toThrow('Docker error');
-      
+      await expect(service.createTemporaryContainer(1, 1)).rejects.toThrow(
+        'Docker error',
+      );
+
       expect(managementService.releasePort).toHaveBeenCalledWith(5432);
     });
   });
@@ -147,24 +153,30 @@ describe('DatabaseContainerService', () => {
   describe('executeQueryOnContainer', () => {
     it('should execute query on ready container', async () => {
       const mockQueryResult = [{ id: 1, name: 'test' }];
-      
+
       // Setup container first
       managementService.reserveAvailablePort.mockResolvedValue(5432);
       managementService.createContainer.mockResolvedValue(mockContainer);
       managementService.startContainer.mockResolvedValue(undefined);
       connectionService.waitForContainerReady.mockResolvedValue(undefined);
       connectionService.copyDatabaseToContainer.mockResolvedValue(undefined);
-      connectionService.executeQueryOnContainer.mockResolvedValue(mockQueryResult);
+      connectionService.executeQueryOnContainer.mockResolvedValue(
+        mockQueryResult,
+      );
       prisma.database.findUnique.mockResolvedValue(mockDatabase);
 
       await service.createTemporaryContainer(1, 1);
 
-      const result = await service.executeQueryOnContainer(1, 1, 'SELECT * FROM test');
+      const result = (await service.executeQueryOnContainer(
+        1,
+        1,
+        'SELECT * FROM test',
+      )) as unknown;
 
       expect(result).toEqual(mockQueryResult);
       expect(connectionService.executeQueryOnContainer).toHaveBeenCalledWith(
         expect.objectContaining({ studentId: 1, originalDatabaseId: 1 }),
-        'SELECT * FROM test'
+        'SELECT * FROM test',
       );
     });
 
@@ -183,7 +195,7 @@ describe('DatabaseContainerService', () => {
       prisma.database.findUnique.mockResolvedValue(mockDatabase);
 
       // Start creation but don't await completion
-      service.createTemporaryContainer(1, 1);
+      void service.createTemporaryContainer(1, 1);
 
       await expect(
         service.executeQueryOnContainer(1, 1, 'SELECT * FROM test'),
@@ -203,55 +215,56 @@ describe('DatabaseContainerService', () => {
       prisma.database.findUnique.mockResolvedValue(mockDatabase);
 
       await service.createTemporaryContainer(1, 1);
-      
+
       await service.cleanupContainer(1, 1);
 
       expect(cleanupService.cleanupSingleContainer).toHaveBeenCalledWith(
         expect.objectContaining({ studentId: 1, originalDatabaseId: 1 }),
-        expect.any(Map)
+        expect.any(Map),
       );
     });
 
     it('should handle cleanup of non-existent container gracefully', async () => {
       await service.cleanupContainer(1, 1);
-      
+
       expect(cleanupService.cleanupSingleContainer).not.toHaveBeenCalled();
     });
   });
 
   describe('cleanupAllContainersForStudent', () => {
     it('should cleanup all containers for a student', async () => {
-      cleanupService.cleanupAllContainersForStudent.mockResolvedValue(undefined);
-      
-      await service.cleanupAllContainersForStudent(1);
-      
-      expect(cleanupService.cleanupAllContainersForStudent).toHaveBeenCalledWith(
-        expect.any(Map),
-        1
+      cleanupService.cleanupAllContainersForStudent.mockResolvedValue(
+        undefined,
       );
+
+      await service.cleanupAllContainersForStudent(1);
+
+      expect(
+        cleanupService.cleanupAllContainersForStudent,
+      ).toHaveBeenCalledWith(expect.any(Map), 1);
     });
   });
 
   describe('cleanupOldContainers', () => {
     it('should cleanup old containers with default age', async () => {
       cleanupService.cleanupOldContainers.mockResolvedValue(undefined);
-      
+
       await service.cleanupOldContainers();
-      
+
       expect(cleanupService.cleanupOldContainers).toHaveBeenCalledWith(
         expect.any(Map),
-        60
+        60,
       );
     });
 
     it('should cleanup old containers with custom age', async () => {
       cleanupService.cleanupOldContainers.mockResolvedValue(undefined);
-      
+
       await service.cleanupOldContainers(30);
-      
+
       expect(cleanupService.cleanupOldContainers).toHaveBeenCalledWith(
         expect.any(Map),
-        30
+        30,
       );
     });
   });
@@ -259,17 +272,17 @@ describe('DatabaseContainerService', () => {
   describe('cleanupOrphanedContainers', () => {
     it('should cleanup orphaned containers', async () => {
       cleanupService.cleanupOrphanedContainers.mockResolvedValue(undefined);
-      
+
       await service.cleanupOrphanedContainers();
-      
+
       expect(cleanupService.cleanupOrphanedContainers).toHaveBeenCalled();
     });
   });
 
   describe('getActiveContainers', () => {
-    it('should return copy of active containers map', async () => {
+    it('should return copy of active containers map', () => {
       const result = service.getActiveContainers();
-      
+
       expect(result).toBeInstanceOf(Map);
       expect(result.size).toBe(0);
     });
@@ -283,9 +296,9 @@ describe('DatabaseContainerService', () => {
       prisma.database.findUnique.mockResolvedValue(mockDatabase);
 
       await service.createTemporaryContainer(1, 1);
-      
+
       const result = service.getActiveContainers();
-      
+
       expect(result.size).toBe(1);
       expect(result.get('1-1')).toBeDefined();
     });
@@ -294,7 +307,7 @@ describe('DatabaseContainerService', () => {
   describe('getContainerInfo', () => {
     it('should return undefined for non-existent container', () => {
       const result = service.getContainerInfo(1, 1);
-      
+
       expect(result).toBeUndefined();
     });
 
@@ -307,9 +320,9 @@ describe('DatabaseContainerService', () => {
       prisma.database.findUnique.mockResolvedValue(mockDatabase);
 
       await service.createTemporaryContainer(1, 1);
-      
+
       const result = service.getContainerInfo(1, 1);
-      
+
       expect(result).toBeDefined();
       expect(result?.studentId).toBe(1);
       expect(result?.originalDatabaseId).toBe(1);

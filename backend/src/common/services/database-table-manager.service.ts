@@ -67,7 +67,9 @@ export class DatabaseTableManagerService {
 
       // Extract table names only from this database's schema
       const tableNames = this.extractTableNames(database.schema);
-      this.logger.log(`Tables found in schema: ${tableNames.join(', ') || 'none'}`);
+      this.logger.log(
+        `Tables found in schema: ${tableNames.join(', ') || 'none'}`,
+      );
 
       // Add known tables based on the database name if not already detected
       if (
@@ -140,7 +142,9 @@ export class DatabaseTableManagerService {
               await this.prisma.$executeRawUnsafe(
                 `DROP TABLE IF EXISTS "${wordTableName}" CASCADE;`,
               );
-              this.logger.log(`Dropped table derived from name: ${wordTableName}`);
+              this.logger.log(
+                `Dropped table derived from name: ${wordTableName}`,
+              );
               droppedTables.push(wordTableName);
             } catch {
               // Ignore errors here

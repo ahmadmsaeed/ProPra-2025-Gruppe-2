@@ -322,7 +322,9 @@ export class SqlProcessorService {
 
     // Detect file type and convert if necessary
     if (this.isMySQLDump(sqlContent)) {
-      this.logger.log('Detected MySQL dump. Converting to PostgreSQL format...');
+      this.logger.log(
+        'Detected MySQL dump. Converting to PostgreSQL format...',
+      );
       processedSql = mysqlConverter.convertToPostgreSQL(sqlContent);
       fileType = 'MySQL';
       this.logger.log('Conversion completed.');
