@@ -66,6 +66,12 @@ export class SqlImportController {
     return this.sqlImportService.getDatabase(+id);
   }
 
+  @Get('databases/:id/structure')
+  @Roles(Role.TEACHER, Role.TUTOR, Role.STUDENT)
+  async getDatabaseStructure(@Param('id') id: string) {
+    return this.sqlImportService.getDatabaseStructure(+id);
+  }
+
   @Post('databases')
   @Roles(Role.TEACHER)
   async createDatabase(@Body() data: DatabaseCreateData) {
