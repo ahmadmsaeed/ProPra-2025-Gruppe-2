@@ -1,0 +1,31 @@
+.database-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 500px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+mat-dialog-content {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+mat-progress-bar {
+  margin-top: 16px;
+}
+
+h2[mat-dialog-title] {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #1976d2;
+}
+
+textarea {
+  font-family: 'Roboto Mono', monospace;
+  line-height: 1.4;
+}
