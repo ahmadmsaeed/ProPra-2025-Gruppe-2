@@ -1,0 +1,131 @@
+<h2 mat-dialog-title>
+  <mat-icon>auto_awesome</mat-icon>
+  Datenbank mit KI generieren
+</h2>
+
+<mat-dialog-content>
+  <mat-stepper #stepper [linear]="true" class="database-stepper">
+    <!-- Step 1: Configuration -->
+    <mat-step [stepControl]="requestForm" label="Konfiguration">
+      <form [formGroup]="requestForm" class="generation-form">
+        <div class="form-section">
+          <h3>Beschreibung der gewünschten Datenbank</h3>
+          <mat-form-field appearance="fill" class="full-width">
+            <mat-label>Beschreiben Sie Ihre Datenbank</mat-label>
+            <textarea 
+              matInput 
+              formControlName="prompt"
+              placeholder="z.B. Eine Universitätsdatenbank mit Studenten, Kursen, Professoren und Einschreibungen"
+              rows="4"
+            ></textarea>
+            <mat-hint>{{ requestForm.value.prompt?.length || 0 }} / 500 Zeichen</mat-hint>
+            <mat-error *ngIf="requestForm.get('prompt')?.hasError('required')">
+              Beschreibung ist erforderlich
+            </mat-error>
+            <mat-error *ngIf="requestForm.get('prompt')?.hasError('minlength')">
+              Mindestens 10 Zeichen erforderlich
+            </mat-error>
+          </mat-form-field>
+        </div>
+
+        <div class="form-section">
+          <h3>Zusätzliche Parameter</h3>
+          <mat-form-field appearance="fill">
+            <mat-label>Komplexität</mat-label>
+            <mat-select formControlName="complexity">
+              <mat-option *ngFor="let option of complexityOptions" [value]="option.value">
+                {{ option.label }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="fill">
+            <mat-label>Anzahl der Tabellen</mat-label>
+            <mat-select formControlName="tableCount">
+              <mat-option *ngFor="let count of tableCountOptions" [value]="count">
+                {{ count }}
+              </mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <mat-form-field appearance="fill" class="full-width">
+            <mat-label>Name der Datenbank (optional)</mat-label>
+            <input matInput formControlName="databaseName" placeholder="Wird automatisch generiert, wenn leer">
+          </mat-form-field>
+        </div>
+
+        <div class="form-actions">
+          <button 
+            mat-raised-button 
+            [color]="requestForm.valid && !isGenerating ? 'primary' : ''"
+            [class.disabled-button]="!requestForm.valid || isGenerating"
+            [disabled]="requestForm.invalid || isGenerating"
+            (click)="generateDatabase()"
+          >
+            <mat-icon>auto_awesome</mat-icon>
+            Datenbank generieren
+          </button>
+        </div>
+
+        <mat-progress-bar *ngIf="isGenerating" mode="indeterminate"></mat-progress-bar>
+        
+        <div *ngIf="errorMessage" class="error-message">
+          <mat-icon>error</mat-icon>
+          <p>{{ errorMessage }}</p>
+        </div>
+      </form>
+    </mat-step>
+
+    <!-- Step 2: Preview -->
+    <mat-step label="Vorschau & Bestätigung">
+      <div *ngIf="generatedDatabase" class="preview-container">
+        <mat-card class="preview-card">
+          <mat-card-header>
+            <mat-card-title>{{ generatedDatabase.name }}</mat-card-title>
+            <mat-card-subtitle *ngIf="generatedDatabase.description">
+              {{ generatedDatabase.description }}
+            </mat-card-subtitle>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="preview-section">
+              <h4>Schema (DDL)</h4>
+              <div class="code-preview">
+                <pre>{{ generatedDatabase.schema }}</pre>
+              </div>
+            </div>
+
+            <div class="preview-section" *ngIf="generatedDatabase.seedData">
+              <h4>Seed-Daten</h4>
+              <div class="code-preview">
+                <pre>{{ generatedDatabase.seedData }}</pre>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <div class="preview-actions">
+          <button mat-button (click)="stepper.previous()">
+            <mat-icon>arrow_back</mat-icon>
+            Zurück
+          </button>
+          <button 
+            mat-raised-button 
+            [color]="!isCreating ? 'primary' : ''"
+            [class.disabled-button]="isCreating"
+            [disabled]="isCreating"
+            (click)="createDatabase()"
+          >
+            <mat-icon>save</mat-icon>
+            Datenbank erstellen
+          </button>
+        </div>
+
+        <mat-progress-bar *ngIf="isCreating" mode="indeterminate"></mat-progress-bar>
+      </div>
+    </mat-step>
+  </mat-stepper>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">Abbrechen</button>
+</mat-dialog-actions>

@@ -92,6 +92,22 @@ export class SqlImportService {
   }
 
   /**
+   * Get database structure for visualization
+   */
+  async getDatabaseStructure(id: number) {
+    const database = await this.databaseManagement.getDatabaseById(id);
+    
+    // Parse the schema to extract table and relationship information
+    const structure = this.parseDatabaseStructure(database.schema);
+    
+    return {
+      id: database.id,
+      name: database.name,
+      structure
+    };
+  }
+
+  /**
    * Create a new database
    */
   async create(data: DatabaseCreateData) {
@@ -184,5 +200,128 @@ export class SqlImportService {
       name,
       authorId,
     );
+  }
+
+  /**
+   * Parse database schema to extract structure information
+   */
+  private parseDatabaseStructure(schema: string) {
+    const tables: any[] = [];
+    const relationships: any[] = [];
+    
+    // Extract table names and their columns
+    const tableRegex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?["']?(\w+)["']?\s*\(([\s\S]*?)\);/gi;
+    let match;
+    
+    while ((match = tableRegex.exec(schema)) !== null) {
+      const tableName = match[1];
+      const tableDefinition = match[2];
+      
+      const columns = this.parseColumns(tableDefinition);
+      const primaryKeys = this.extractPrimaryKeys(tableDefinition);
+      const foreignKeys = this.extractForeignKeys(tableDefinition);
+      
+      tables.push({
+        name: tableName,
+        columns,
+        primaryKeys,
+        foreignKeys
+      });
+      
+      // Add relationships from foreign keys
+      foreignKeys.forEach(fk => {
+        relationships.push({
+          from: tableName,
+          to: fk.referencesTable,
+          fromColumn: fk.column,
+          toColumn: fk.referencesColumn,
+          type: 'foreign_key'
+        });
+      });
+    }
+    
+    return {
+      tables,
+      relationships
+    };
+  }
+
+  /**
+   * Parse column definitions from table definition
+   */
+  private parseColumns(tableDefinition: string) {
+    const columns: any[] = [];
+    const lines = tableDefinition.split('\n');
+    
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (!trimmedLine || trimmedLine.startsWith('PRIMARY KEY') || trimmedLine.startsWith('FOREIGN KEY')) {
+        continue;
+      }
+      
+      const columnMatch = trimmedLine.match(/^["']?(\w+)["']?\s+([A-Za-z0-9\(\)]+)(.*)$/i);
+      if (columnMatch) {
+        const name = columnMatch[1];
+        const type = columnMatch[2];
+        const constraints = columnMatch[3] ? columnMatch[3].trim() : '';
+        
+        columns.push({
+          name,
+          type,
+          constraints,
+          isNullable: !constraints.includes('NOT NULL'),
+          isPrimary: constraints.includes('PRIMARY KEY')
+        });
+      }
+    }
+    
+    return columns;
+  }
+
+  /**
+   * Extract primary key information
+   */
+  private extractPrimaryKeys(tableDefinition: string) {
+    const primaryKeys: string[] = [];
+    
+    // Look for PRIMARY KEY constraint
+    const pkMatch = tableDefinition.match(/PRIMARY\s+KEY\s*\(\s*["']?(\w+)["']?\s*\)/i);
+    if (pkMatch) {
+      primaryKeys.push(pkMatch[1]);
+    }
+    
+    // Also check for inline PRIMARY KEY
+    const lines = tableDefinition.split('\n');
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      if (trimmedLine.includes('PRIMARY KEY')) {
+        const columnMatch = trimmedLine.match(/^["']?(\w+)["']?/);
+        if (columnMatch) {
+          primaryKeys.push(columnMatch[1]);
+        }
+      }
+    }
+    
+    return primaryKeys;
+  }
+
+  /**
+   * Extract foreign key information
+   */
+  private extractForeignKeys(tableDefinition: string) {
+    const foreignKeys: any[] = [];
+    
+    const fkRegex = /FOREIGN\s+KEY\s*\(\s*["']?(\w+)["']?\s*\)\s+REFERENCES\s+["']?(\w+)["']?\s*\(\s*["']?(\w+)["']?\s*\)/gi;
+    let match;
+    
+    while ((match = fkRegex.exec(tableDefinition)) !== null) {
+      foreignKeys.push({
+        column: match[1],
+        referencesTable: match[2],
+        referencesColumn: match[3]
+      });
+    }
+    
+    return foreignKeys;
   }
 }

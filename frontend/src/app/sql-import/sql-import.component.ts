@@ -25,6 +25,7 @@ import { ErrorDialogComponent } from '../dialogs/error-dialog.component';
 import { SuccessDialogComponent } from '../success-dialog/success-dialog.component';
 import { CreateDatabaseDialogComponent } from './create-database-dialog.component';
 import { GenerateDatabaseDialogComponent } from './generate-database-dialog.component';
+import { DatabaseVisualizationDialogComponent } from '../dialogs/database-visualization-dialog.component';
 import { BaseComponent } from '../shared/components/base.component';
 import { DatabaseSchemaService, DatabaseTable } from '../student-exercises/database-schema.service';
 import { TableDataService } from '../student-exercises/table-data.service';
@@ -361,6 +362,17 @@ export class SqlImportComponent extends BaseComponent implements OnInit {
   
   viewDatabaseWithTables(db: any) {
     this.viewDatabaseTables(db);
+  }
+
+  visualizeDatabase(db: any) {
+    this.dialogService.openDialog(DatabaseVisualizationDialogComponent, {
+      width: '90vw',
+      maxWidth: '1200px',
+      data: {
+        databaseId: db.id,
+        databaseName: db.name
+      }
+    });
   }
   editDatabase(db: any) {
     const dialogRef = this.dialogService.openDialog(EditDatabaseDialogComponent, {

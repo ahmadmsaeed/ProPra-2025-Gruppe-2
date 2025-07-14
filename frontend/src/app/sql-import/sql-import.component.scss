@@ -315,17 +315,20 @@ table {
 
 // Dark theme support
 :host-context(.dark-theme) {
-  .schema-table {
-    th {
-      background-color: rgba(33, 150, 243, 0.1);
-    }
+  .file-info {
+    background-color: var(--surface-color, #23262f) !important;
+    color: var(--text-color, #f4f4f4) !important;
   }
 
-  .seed-data-statements {
-    pre {
-      background-color: #1a1a1a;
-      border-color: var(--border-color, #333);
-      color: var(--text-color, #e0e0e0);
+  .database-name.mat-mdc-form-field {
+    .mdc-text-field {
+      background-color: var(--surface-color, #23262f) !important;
+    }
+    .mdc-text-field__input {
+      color: var(--text-color, #f4f4f4) !important;
+    }
+    .mdc-floating-label {
+      color: var(--text-secondary-color, #b0b3c0) !important;
     }
   }
 }

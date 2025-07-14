@@ -94,6 +94,9 @@
               <button mat-icon-button color="accent" (click)="viewDatabaseWithTables(db)" matTooltip="Tabellendaten anzeigen">
                 <mat-icon>table_chart</mat-icon>
               </button>
+              <button mat-icon-button color="warn" (click)="visualizeDatabase(db)" matTooltip="Datenbank visualisieren">
+                <mat-icon>schema</mat-icon>
+              </button>
               <button mat-icon-button color="primary" (click)="editDatabase(db)" 
                       *ngIf="canEdit(db)" 
                       matTooltip="Datenbank bearbeiten">

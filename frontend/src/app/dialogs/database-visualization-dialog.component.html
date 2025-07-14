@@ -1,0 +1,127 @@
+<div class="visualization-dialog">
+  <div mat-dialog-header>
+    <h2 mat-dialog-title>
+      <mat-icon>schema</mat-icon>
+      Datenbank Visualisierung: {{ data.databaseName }}
+    </h2>
+    <button mat-icon-button (click)="onClose()" matTooltip="Schließen">
+      <mat-icon>close</mat-icon>
+    </button>
+  </div>
+
+  <mat-dialog-content>
+    <div *ngIf="isLoading" class="loading-container">
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      <p>Lade Datenbankstruktur...</p>
+    </div>
+
+    <div *ngIf="error" class="error-container">
+      <mat-icon color="warn">error</mat-icon>
+      <p>{{ error }}</p>
+    </div>
+
+    <div *ngIf="!isLoading && !error && databaseStructure" class="visualization-content">
+      <mat-tab-group>
+        <!-- ER Diagram Tab -->
+        <mat-tab label="ER-Diagramm">
+          <div class="tab-content">
+            <div class="diagram-container">
+              <div #mermaidContainer class="mermaid-diagram"></div>
+            </div>
+            <div class="diagram-controls">
+              <button mat-button color="primary" (click)="refreshDiagram()" matTooltip="Diagramm neu laden">
+                <mat-icon>refresh</mat-icon>
+                Neu laden
+              </button>
+              <button mat-button color="accent" (click)="downloadDiagram()" matTooltip="Diagramm herunterladen">
+                <mat-icon>download</mat-icon>
+                Herunterladen
+              </button>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Structure Details Tab -->
+        <mat-tab label="Struktur Details">
+          <div class="tab-content">
+            <div class="structure-details">
+              <h3>Tabellen ({{ databaseStructure.structure.tables.length }})</h3>
+              <mat-accordion>
+                <mat-expansion-panel *ngFor="let table of databaseStructure.structure.tables">
+                  <mat-expansion-panel-header>
+                    <mat-panel-title>
+                      <strong>{{ table.name }}</strong>
+                      <mat-chip *ngIf="table.primaryKeys.length > 0" color="primary" selected>
+                        PK: {{ table.primaryKeys.join(', ') }}
+                      </mat-chip>
+                    </mat-panel-title>
+                  </mat-expansion-panel-header>
+                  <div class="table-details">
+                    <h4>Spalten ({{ table.columns.length }})</h4>
+                    <div class="columns-list">
+                      <div *ngFor="let column of table.columns" class="column-item">
+                        <div class="column-header">
+                          <span class="column-name">{{ column.name }}</span>
+                          <span class="column-type">{{ column.type }}</span>
+                          <mat-chip *ngIf="column.isPrimary" color="primary" selected>PK</mat-chip>
+                          <mat-chip *ngIf="!column.isNullable" color="warn" selected>NOT NULL</mat-chip>
+                        </div>
+                        <div *ngIf="column.constraints" class="column-constraints">
+                          {{ column.constraints }}
+                        </div>
+                      </div>
+                    </div>
+                    <div *ngIf="table.foreignKeys.length > 0" class="foreign-keys">
+                      <h4>Fremdschlüssel ({{ table.foreignKeys.length }})</h4>
+                      <div *ngFor="let fk of table.foreignKeys" class="fk-item">
+                        <mat-icon>link</mat-icon>
+                        <span>{{ fk.column }} → {{ fk.referencesTable }}.{{ fk.referencesColumn }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </mat-expansion-panel>
+              </mat-accordion>
+            </div>
+          </div>
+        </mat-tab>
+
+        <!-- Relationships Tab -->
+        <mat-tab label="Beziehungen">
+          <div class="tab-content">
+            <div class="relationships-details">
+              <h3>Beziehungen ({{ databaseStructure.structure.relationships.length }})</h3>
+              <div *ngIf="databaseStructure.structure.relationships.length === 0" class="no-relationships">
+                <mat-icon>info</mat-icon>
+                <p>Keine Beziehungen zwischen Tabellen gefunden.</p>
+              </div>
+              <div *ngIf="databaseStructure.structure.relationships.length > 0" class="relationships-list">
+                <mat-card *ngFor="let rel of databaseStructure.structure.relationships" class="relationship-card">
+                  <mat-card-header>
+                    <mat-card-title>
+                      <mat-icon>link</mat-icon>
+                      {{ rel.from }} → {{ rel.to }}
+                    </mat-card-title>
+                    <mat-card-subtitle>
+                      Fremdschlüssel Beziehung
+                    </mat-card-subtitle>
+                  </mat-card-header>
+                  <mat-card-content>
+                    <div class="relationship-details">
+                      <p><strong>Von:</strong> {{ rel.from }}.{{ rel.fromColumn }}</p>
+                      <p><strong>Zu:</strong> {{ rel.to }}.{{ rel.toColumn }}</p>
+                      <p><strong>Typ:</strong> {{ rel.type }}</p>
+                    </div>
+                  </mat-card-content>
+                </mat-card>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button (click)="onClose()">Schließen</button>
+  </mat-dialog-actions>
+</div>
