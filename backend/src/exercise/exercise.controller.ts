@@ -17,6 +17,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ExerciseService } from './exercise.service';
+import { ExerciseGenerationService, ExerciseGenerationRequest } from './exercise-generation.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -36,7 +37,10 @@ interface ExerciseCreateData {
 @Controller('exercises')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ExerciseController {
-  constructor(private readonly exerciseService: ExerciseService) {}
+  constructor(
+    private readonly exerciseService: ExerciseService,
+    private readonly exerciseGenerationService: ExerciseGenerationService,
+  ) {}
 
   /**
    * Get all exercises (for management views).
@@ -112,5 +116,17 @@ export class ExerciseController {
     @Request() req: AuthenticatedRequest,
   ) {
     return this.exerciseService.delete(+id, req.user.sub, req.user.role);
+  }
+
+  /**
+   * Generate a new exercise using AI (teachers/tutors only).
+   */
+  @Post('generate')
+  @Roles(Role.TEACHER, Role.TUTOR)
+  async generateExercise(
+    @Body() request: ExerciseGenerationRequest,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.exerciseGenerationService.generateExercise(request);
   }
 }

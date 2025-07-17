@@ -5,6 +5,10 @@ import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SqlImportService } from '../sql-import/sql-import.service';
 import { DatabaseContainerService } from '../sql-import/database-container.service';
+import {
+  LlmFeedbackService,
+  FeedbackRequest,
+} from '../common/services/llm-feedback.service';
 
 interface QueryResult {
   [key: string]: unknown;
@@ -22,6 +26,7 @@ export class SubmissionsService {
     private prisma: PrismaService,
     private sqlImportService: SqlImportService,
     private databaseContainerService: DatabaseContainerService,
+    private llmFeedbackService: LlmFeedbackService,
   ) {}
 
   /**
@@ -103,10 +108,26 @@ export class SubmissionsService {
       // Check if results match
       const isCorrect = studentResultStr === solutionResultStr;
 
-      // Create feedback based on correctness
-      const feedback = isCorrect
-        ? 'Korrekt! Deine Lösung stimmt mit der Musterlösung überein.'
-        : 'Nicht korrekt. Deine Antwort liefert ein anderes Ergebnis als die Musterlösung.';
+      // Generate intelligent feedback using LLM
+      const feedbackRequest: FeedbackRequest = {
+        studentQuery: query,
+        solutionQuery: exercise.solutionQuery,
+        exerciseDescription: exercise.description,
+        exerciseTitle: exercise.title,
+        isCorrect,
+        studentResult: studentResult,
+        solutionResult: solutionResult,
+        databaseSchema: exercise.database.schema,
+      };
+
+      this.logger.log(
+        `Generating feedback for student ${studentId}, exercise ${exerciseId}`,
+      );
+      const llmFeedback =
+        await this.llmFeedbackService.generateFeedback(feedbackRequest);
+
+      // Use the main feedback text for the database field (for now)
+      const feedback = llmFeedback.feedback;
 
       // Save the submission
       const submission = await this.prisma.submission.create({
@@ -150,11 +171,30 @@ export class SubmissionsService {
       // If there was an error executing the query, create a submission with error feedback
       const errorMessage =
         error instanceof Error ? error.message : 'Unbekannter Fehler';
+
+      this.logger.error(
+        `Error executing query for student ${studentId}: ${errorMessage}`,
+      );
+
+      // Generate intelligent feedback for the error case
+      const feedbackRequest: FeedbackRequest = {
+        studentQuery: query,
+        solutionQuery: exercise.solutionQuery,
+        exerciseDescription: exercise.description,
+        exerciseTitle: exercise.title,
+        isCorrect: false,
+        errorMessage: errorMessage,
+        databaseSchema: exercise.database.schema,
+      };
+
+      const llmFeedback =
+        await this.llmFeedbackService.generateFeedback(feedbackRequest);
+
       return this.prisma.submission.create({
         data: {
           query,
           isCorrect: false,
-          feedback: `Fehler bei der Ausführung: ${errorMessage}`,
+          feedback: llmFeedback.feedback,
           studentId,
           exerciseId,
         },

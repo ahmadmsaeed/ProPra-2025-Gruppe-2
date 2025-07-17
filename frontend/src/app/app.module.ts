@@ -9,6 +9,9 @@ import { HttpClientModule, HTTP_INTERCEPTORS } from '@angular/common/http';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatChipsModule } from '@angular/material/chips';
+import { MatStepperModule } from '@angular/material/stepper';
+import { MatMenuModule } from '@angular/material/menu';
 import { MAT_RIPPLE_GLOBAL_OPTIONS, RippleGlobalOptions } from '@angular/material/core';
 
 import { AppComponent } from './app-component/app.component';
@@ -40,6 +43,9 @@ const globalRippleConfig: RippleGlobalOptions = {
     MatTabsModule,
     MatButtonModule,
     MatIconModule,
+    MatChipsModule,
+    MatStepperModule,
+    MatMenuModule,
     
     FormsModule
   ],

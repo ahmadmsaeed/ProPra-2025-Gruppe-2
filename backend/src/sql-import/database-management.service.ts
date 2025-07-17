@@ -320,21 +320,31 @@ export class DatabaseManagementService {
       database as DatabaseQueryResult,
     );
 
-    // Delete the database entry
-    await this.prisma.database.delete({
-      where: { id },
-    });
+    try {
+      // Delete the database entry
+      await this.prisma.database.delete({
+        where: { id },
+      });
 
-    // Log the deletion
-    this.databaseAudit.logDatabaseDeletion(
-      database as DatabaseInfo,
-      userId,
-      droppedTables,
-    );
+      // Log the deletion
+      this.databaseAudit.logDatabaseDeletion(
+        database as DatabaseInfo,
+        userId,
+        droppedTables,
+      );
 
-    return {
-      message: `Database ${database?.name || 'unknown'} deleted successfully`,
-    };
+      return {
+        message: `Database ${database?.name || 'unknown'} deleted successfully`,
+      };
+    } catch (error) {
+      // Handle foreign key constraint error
+      if (error.code === 'P2003' && error.meta?.field_name?.includes('Exercise_databaseSchemaId_fkey')) {
+        throw new BadRequestException(
+          'Die Datenbank kann nicht gelöscht werden, da sie von einer oder mehreren Aufgaben verwendet wird.',
+        );
+      }
+      throw error;
+    }
   }
 
   /**

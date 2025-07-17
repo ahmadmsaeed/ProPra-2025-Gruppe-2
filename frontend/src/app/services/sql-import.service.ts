@@ -77,6 +77,17 @@ export class SqlImportService {
   }
 
   /**
+   * Get database structure for visualization
+   */
+  getDatabaseStructure(id: number): Observable<any> {
+    return this.http.get<any>(`${this.apiUrl}/databases/${id}/structure`).pipe(
+      retry(2),
+      timeout(30000),
+      catchError(error => this.handleError(error, `Failed to load database structure for ID ${id}`))
+    );
+  }
+
+  /**
    * Create a new database
    */
   createDatabase(database: Partial<SqlImport>, sqlFile: File): Observable<SqlImport> {

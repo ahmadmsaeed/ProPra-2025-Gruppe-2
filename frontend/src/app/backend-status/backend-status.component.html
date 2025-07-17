@@ -1,5 +1,4 @@
 <div [ngClass]="status">
-  <span *ngIf="status === 'up'" class="status-text">SQL Platform API bereit</span>
   <span *ngIf="status === 'down'" class="status-text">SQL Platform API nicht erreichbar</span>
   <span *ngIf="status === 'unknown'" class="status-text">Prüfe API Status...</span>
 </div>

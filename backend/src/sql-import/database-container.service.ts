@@ -128,11 +128,51 @@ export class DatabaseContainerService {
       });
 
       if (database) {
-        await this.containerConnection.copyDatabaseToContainer(
-          containerInfo,
-          database.schema,
-          database.seedData,
-        );
+        this.logger.log(`Copying database schema and data for database ${originalDatabaseId}`);
+        
+        try {
+          await this.containerConnection.copyDatabaseToContainer(
+            containerInfo,
+            database.schema,
+            database.seedData,
+          );
+          
+          // Verify that tables were created successfully
+          const verifyQuery = `
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' 
+            AND table_type = 'BASE TABLE'
+            ORDER BY table_name
+          `;
+          
+          const tables = await this.containerConnection.executeQueryOnContainer(
+            containerInfo,
+            verifyQuery,
+          );
+          
+          this.logger.log(`Container ${containerName} successfully created with ${tables.length} tables: ${tables.map(t => t.table_name).join(', ')}`);
+          
+          // Also verify we can query each table
+          for (const table of tables) {
+            try {
+              const countQuery = `SELECT COUNT(*) as count FROM ${table.table_name}`;
+              const result = await this.containerConnection.executeQueryOnContainer(
+                containerInfo,
+                countQuery,
+              );
+              this.logger.log(`Table ${table.table_name} has ${result[0]?.count || 0} rows`);
+            } catch (tableError) {
+              this.logger.warn(`Warning: Could not count rows in table ${table.table_name}: ${tableError}`);
+            }
+          }
+          
+        } catch (copyError) {
+          this.logger.error(`Error copying database to container: ${copyError}`);
+          throw copyError;
+        }
+      } else {
+        this.logger.warn(`Database with ID ${originalDatabaseId} not found`);
       }
 
       containerInfo.status = 'ready';

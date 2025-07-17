@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { SqlImportService } from './sql-import.service';
+import { DatabaseGenerationService, DatabaseGenerationRequest } from './database-generation.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -35,6 +36,7 @@ export class SqlImportController {
   constructor(
     private readonly sqlImportService: SqlImportService,
     private readonly prisma: PrismaService,
+    private readonly databaseGenerationService: DatabaseGenerationService,
   ) {}
 
   // Upload endpoint
@@ -62,6 +64,12 @@ export class SqlImportController {
   @Roles(Role.TEACHER, Role.TUTOR, Role.STUDENT)
   async getDatabase(@Param('id') id: string) {
     return this.sqlImportService.getDatabase(+id);
+  }
+
+  @Get('databases/:id/structure')
+  @Roles(Role.TEACHER, Role.TUTOR, Role.STUDENT)
+  async getDatabaseStructure(@Param('id') id: string) {
+    return this.sqlImportService.getDatabaseStructure(+id);
   }
 
   @Post('databases')
@@ -259,6 +267,32 @@ export class SqlImportController {
         success: false,
         error: errorMessage,
         message: 'Failed to initialize database container',
+      };
+    }
+  }
+
+  // Generate database using AI
+  @Post('generate-database')
+  @Roles(Role.TEACHER, Role.TUTOR)
+  async generateDatabase(
+    @Body() request: DatabaseGenerationRequest,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    try {
+      this.logger.log(`Generating database for user ${req.user.sub}: ${request.prompt}`);
+      
+      const generatedDatabase = await this.databaseGenerationService.generateDatabase(request);
+      
+      this.logger.log(`Successfully generated database: ${generatedDatabase.name}`);
+      return generatedDatabase;
+      
+    } catch (error) {
+      this.logger.error(`Database generation failed: ${error.message}`, error.stack);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      return {
+        success: false,
+        error: errorMessage,
+        message: 'Failed to generate database using AI',
       };
     }
   }

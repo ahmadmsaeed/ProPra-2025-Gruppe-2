@@ -23,6 +23,32 @@ h1 {
   flex: 2;
 }
 
+.database-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.database-header h2 {
+  margin: 0;
+}
+
+.database-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.create-button {
+  background-color: #1976d2;
+  color: white;
+}
+
+.create-button:hover {
+  background-color: #1565c0;
+}
+
 .loading-indicator {
   padding: 20px 0;
   text-align: center;
@@ -148,4 +174,161 @@ table {
 .database-name {
   width: 100%;
   margin-bottom: 10px;
+}
+
+// Table data viewer styles
+.table-viewer-card {
+  margin-top: 20px;
+}
+
+.database-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.database-explorer {
+  margin-top: 16px;
+}
+
+.tab-content {
+  padding: 20px 0;
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.loading-container mat-progress-bar {
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: 16px;
+}
+
+.schema-tables {
+  padding: 16px 0;
+}
+
+.schema-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 16px;
+  background-color: var(--surface-color, #fafafa);
+  border-radius: 4px;
+  overflow: hidden;
+  
+  th, td {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color, #e0e0e0);
+    color: var(--text-color, #333);
+  }
+  
+  th {
+    font-weight: 600;
+    color: var(--primary-color, #1976d2);
+    background-color: var(--surface-color, #f5f5f5);
+  }
+}
+
+.table-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.no-tables,
+.no-table-selected {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-color, #666);
+}
+
+.no-tables mat-icon,
+.no-table-selected mat-icon {
+  font-size: 48px;
+  height: 48px;
+  width: 48px;
+  color: var(--icon-color, #999);
+  margin-bottom: 16px;
+}
+
+.table-selector {
+  margin-bottom: 20px;
+  
+  mat-form-field {
+    width: 300px;
+  }
+}
+
+.table-data h3 {
+  color: var(--primary-color, #1976d2);
+  margin-bottom: 16px;
+}
+
+.data-sections {
+  margin-bottom: 20px;
+}
+
+.empty-table {
+  display: flex;
+  align-items: center;
+  padding: 20px;
+  background-color: var(--surface-color, #f5f5f5);
+  border-radius: 4px;
+  color: var(--text-color, #666);
+}
+
+.empty-table mat-icon {
+  margin-right: 12px;
+  color: var(--icon-color, #999);
+}
+
+.seed-data-statements {
+  max-height: 300px;
+  overflow-y: auto;
+  background-color: var(--surface-color, #f9f9f9);
+  border-radius: 4px;
+  
+  pre {
+    margin: 8px;
+    padding: 12px;
+    background-color: var(--card-background, #fff);
+    border: 1px solid var(--border-color, #e0e0e0);
+    border-radius: 4px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    line-height: 1.4;
+    color: var(--text-color, #333);
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+}
+
+// Dark theme support
+:host-context(.dark-theme) {
+  .file-info {
+    background-color: var(--surface-color, #23262f) !important;
+    color: var(--text-color, #f4f4f4) !important;
+  }
+
+  .database-name.mat-mdc-form-field {
+    .mdc-text-field {
+      background-color: var(--surface-color, #23262f) !important;
+    }
+    .mdc-text-field__input {
+      color: var(--text-color, #f4f4f4) !important;
+    }
+    .mdc-floating-label {
+      color: var(--text-secondary-color, #b0b3c0) !important;
+    }
+  }
 }

@@ -3,6 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
 import { catchError, shareReplay, tap, retry, timeout } from 'rxjs/operators';
 import { Exercise } from '../models/exercise.model';
+import { ExerciseGenerationRequest, GeneratedExercise } from '../models/exercise-generation.model';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -124,6 +125,18 @@ export class ExerciseService {
         // Invalidate cache after deleting an exercise
         this.invalidateCache();
         console.log(`Deleted exercise with ID: ${id}`);
+      }),
+      catchError(this.handleError)
+    );
+  }
+
+  /**
+   * Generate a new exercise using AI
+   */
+  generateExercise(request: ExerciseGenerationRequest): Observable<GeneratedExercise> {
+    return this.http.post<GeneratedExercise>(`${this.apiUrl}/generate`, request).pipe(
+      tap(generatedExercise => {
+        console.log('Generated new exercise:', generatedExercise);
       }),
       catchError(this.handleError)
     );

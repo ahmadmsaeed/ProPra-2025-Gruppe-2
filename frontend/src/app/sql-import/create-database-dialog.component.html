@@ -1,0 +1,59 @@
+<h2 mat-dialog-title>
+  <mat-icon>storage</mat-icon>
+  {{ data.mode === 'edit' ? 'Datenbank bearbeiten' : 'Neue Datenbank erstellen' }}
+</h2>
+
+<mat-dialog-content>
+  <form [formGroup]="databaseForm" class="database-form">
+    <mat-form-field appearance="fill" class="full-width">
+      <mat-label>Name der Datenbank</mat-label>
+      <input matInput formControlName="name" placeholder="z.B. Universitätsdatenbank">
+      <mat-error *ngIf="databaseForm.get('name')?.hasError('required')">
+        Name ist erforderlich
+      </mat-error>
+      <mat-error *ngIf="databaseForm.get('name')?.hasError('minlength')">
+        Name muss mindestens 3 Zeichen lang sein
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="fill" class="full-width">
+      <mat-label>Schema (DDL)</mat-label>
+      <textarea 
+        matInput 
+        formControlName="schema" 
+        placeholder="CREATE TABLE students (&#10;  id SERIAL PRIMARY KEY,&#10;  name VARCHAR(100) NOT NULL,&#10;  email VARCHAR(100) UNIQUE&#10;);"
+        rows="8"
+      ></textarea>
+      <mat-hint>SQL-Befehle zum Erstellen von Tabellen und Strukturen</mat-hint>
+      <mat-error *ngIf="databaseForm.get('schema')?.hasError('required')">
+        Schema ist erforderlich
+      </mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="fill" class="full-width">
+      <mat-label>Seed-Daten (optional)</mat-label>
+      <textarea 
+        matInput 
+        formControlName="seedData" 
+        placeholder="INSERT INTO students (name, email) VALUES&#10;('Max Mustermann', 'max@example.com'),&#10;('Anna Schmidt', 'anna@example.com');"
+        rows="6"
+      ></textarea>
+      <mat-hint>SQL-Befehle zum Einfügen von Beispieldaten</mat-hint>
+    </mat-form-field>
+  </form>
+
+  <mat-progress-bar *ngIf="isCreating" mode="indeterminate"></mat-progress-bar>
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button (click)="onCancel()">Abbrechen</button>
+  <button 
+    mat-raised-button 
+    color="primary" 
+    [disabled]="databaseForm.invalid || isCreating"
+    (click)="onSave()"
+  >
+    <mat-icon>{{ data.mode === 'edit' ? 'save' : 'add' }}</mat-icon>
+    {{ data.mode === 'edit' ? 'Speichern' : 'Erstellen' }}
+  </button>
+</mat-dialog-actions>

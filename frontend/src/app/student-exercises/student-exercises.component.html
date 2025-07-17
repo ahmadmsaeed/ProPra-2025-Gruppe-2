@@ -1,8 +1,8 @@
 <div class="student-exercises">
   <div class="header-section">
     <h1>SQL-Übungen</h1>
-    <button mat-icon-button (click)="refreshExercises()" matTooltip="Übungen aktualisieren" class="refresh-button">
-      <mat-icon>refresh</mat-icon>
+    <button mat-fab color="primary" (click)="visualizeDatabase()" matTooltip="Datenbank visualisieren" class="visualize-button" *ngIf="selectedExercise">
+      <mat-icon>account_tree</mat-icon>
     </button>
   </div>
   
@@ -55,21 +55,22 @@
     <!-- Main exercise content (disabled while initializing) -->
     <div class="exercise-content" [class.disabled]="(state$ | async)?.isInitializingContainer">
       <div class="practice-header">
-        <button mat-button (click)="backToExercises()">
+        <button mat-icon-button (click)="backToExercises()" aria-label="Zurück zur Übungsauswahl">
           <mat-icon>arrow_back</mat-icon>
-          Zurück zur Übungsauswahl
         </button>
-        <h2>{{ selectedExercise.title }}</h2>
+        <div class="header-content">
+          <h2>{{ selectedExercise.title }}</h2>
+          <div class="exercise-meta">
+            <mat-icon>storage</mat-icon>
+            <span>{{ selectedExercise.database.name }}</span>
+          </div>
+        </div>
       </div>
       
       <mat-card class="practice-description">
         <mat-card-content>
           <h3>Aufgabenstellung</h3>
           <p>{{ selectedExercise.description }}</p>
-          <div class="database-info">
-            <mat-icon>storage</mat-icon>
-            <span>Datenbank: {{ selectedExercise.database.name }}</span>
-          </div>
         </mat-card-content>
       </mat-card>
     
@@ -255,15 +256,20 @@
       <!-- Error Messages -->
       <mat-card class="error-card" *ngIf="(state$ | async)?.hasError">
         <mat-card-content>
-          <div class="error-message">
-            <mat-icon>error</mat-icon>
-            <span>{{ (state$ | async)?.errorMessage }}</span>
+          <div class="error-message-friendly">
+            <div class="error-icon">
+              <mat-icon>warning</mat-icon>
+            </div>
+            <div class="error-text">
+              <h4>Hinweis</h4>
+              <p>{{ (state$ | async)?.errorMessage }}</p>
+            </div>
           </div>
         </mat-card-content>
       </mat-card>
       
       <!-- Query Results -->
-      <mat-card class="results-card" *ngIf="hasExecutedQuery">
+      <mat-card class="results-card" *ngIf="hasExecutedQuery && !(state$ | async)?.hasError">
         <mat-card-header>
           <mat-card-title>
             Abfrageergebnis
