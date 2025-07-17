@@ -36,7 +36,8 @@ export class TableDataService {
       return of({ data: cachedData, columns, seedData });
     }
 
-    const query = `SELECT * FROM ${tableName}`;
+    // Use proper SQL identifier quoting to handle edge cases
+    const query = `SELECT * FROM "${tableName}"`;
     return this.sqlImportService.executeQuery(databaseId, query, true).pipe(
       map((result: any) => {
         let data: any[] = [];
@@ -47,14 +48,44 @@ export class TableDataService {
           columns = Object.keys(result[0]);
           // Cache the result
           this.tableDataCache.set(cacheKey, result);
+        } else if (Array.isArray(result)) {
+          // Empty result set is still valid
+          data = [];
+          columns = [];
+          this.tableDataCache.set(cacheKey, []);
         }
 
         const seedData = this.findSeedDataForTable(tableName);
         return { data, columns, seedData };
       }),
       catchError(error => {
-        console.error('Error loading table data:', error);
-        return of({ data: [], columns: [], seedData: [] });
+        console.error(`Error loading table data for ${tableName}:`, error);
+        
+        // Try without quotes in case the table name has different casing
+        const fallbackQuery = `SELECT * FROM ${tableName}`;
+        return this.sqlImportService.executeQuery(databaseId, fallbackQuery, true).pipe(
+          map((result: any) => {
+            let data: any[] = [];
+            let columns: string[] = [];
+
+            if (Array.isArray(result) && result.length > 0) {
+              data = result;
+              columns = Object.keys(result[0]);
+              this.tableDataCache.set(cacheKey, result);
+            } else if (Array.isArray(result)) {
+              data = [];
+              columns = [];
+              this.tableDataCache.set(cacheKey, []);
+            }
+
+            const seedData = this.findSeedDataForTable(tableName);
+            return { data, columns, seedData };
+          }),
+          catchError(fallbackError => {
+            console.error(`Fallback query also failed for ${tableName}:`, fallbackError);
+            return of({ data: [], columns: [], seedData: [] });
+          })
+        );
       })
     );
   }

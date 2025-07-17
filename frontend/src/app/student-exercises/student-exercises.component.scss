@@ -13,8 +13,21 @@
     color: #3f51b5;
   }
   
-  .refresh-button {
-    color: #3f51b5;
+  .visualize-button {
+    background-color: #3f51b5;
+    color: white;
+    transform: scale(0.8);
+    box-shadow: 0 4px 8px rgba(63, 81, 181, 0.3);
+    
+    &:hover {
+      background-color: #303f9f;
+      transform: scale(0.85);
+      box-shadow: 0 6px 12px rgba(63, 81, 181, 0.4);
+    }
+    
+    mat-icon {
+      font-size: 20px;
+    }
   }
 }
 
@@ -70,8 +83,57 @@ h3 {
 
 // Consolidated styles
 .exercise-practice { margin-top: 20px; position: relative; }
-.practice-header { display: flex; align-items: center; margin-bottom: 20px; }
-.practice-header h2 { margin-left: 20px; margin-bottom: 0; }
+
+.practice-header { 
+  display: flex; 
+  align-items: center; 
+  margin-bottom: 24px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #3f51b5 0%, #5c6bc0 100%);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(63, 81, 181, 0.2);
+  color: white;
+  gap: 16px;
+}
+
+.practice-header .header-content {
+  flex: 1;
+}
+
+.practice-header h2 { 
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.practice-header .exercise-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 0.875rem;
+  opacity: 0.9;
+  
+  mat-icon {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.practice-header button {
+  color: white !important;
+  
+  .mat-icon {
+    color: white;
+  }
+  
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+}
 .practice-description, .database-explorer { margin-bottom: 20px; }
 .custom-tabs { display: flex; flex-direction: column; }
 

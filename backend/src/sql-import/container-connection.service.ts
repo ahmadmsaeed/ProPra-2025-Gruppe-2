@@ -162,14 +162,66 @@ export class ContainerConnectionService {
     try {
       await client.connect();
 
-      // Execute schema
+      // Execute schema - split into individual statements
       if (schema) {
-        await client.query(schema);
+        const schemaStatements = schema
+          .split(';')
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
+        
+        this.logger.log(`Executing ${schemaStatements.length} schema statements...`);
+        
+        for (let i = 0; i < schemaStatements.length; i++) {
+          const statement = schemaStatements[i];
+          try {
+            await client.query(statement);
+            this.logger.log(`Schema statement ${i + 1}/${schemaStatements.length} executed successfully`);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Error executing schema statement ${i + 1}/${schemaStatements.length}: ${statement.substring(0, 100)}...`);
+            this.logger.error(`Error details: ${errorMessage}`);
+            
+            // Don't throw for DROP statements or IF EXISTS statements as they're often safe to fail
+            if (!statement.toUpperCase().includes('DROP') && 
+                !statement.toUpperCase().includes('IF EXISTS') &&
+                !statement.toUpperCase().includes('IF NOT EXISTS')) {
+              throw new Error(`Failed to execute schema statement: ${errorMessage}`);
+            } else {
+              this.logger.warn(`Continuing despite error in DROP/IF statement: ${errorMessage}`);
+            }
+          }
+        }
       }
 
-      // Execute seed data if provided
+      // Execute seed data if provided - split into individual statements
       if (seedData) {
-        await client.query(seedData);
+        const seedStatements = seedData
+          .split(';')
+          .map(s => s.trim())
+          .filter(s => s.length > 0);
+        
+        this.logger.log(`Executing ${seedStatements.length} seed data statements...`);
+        
+        for (let i = 0; i < seedStatements.length; i++) {
+          const statement = seedStatements[i];
+          try {
+            await client.query(statement);
+            this.logger.log(`Seed statement ${i + 1}/${seedStatements.length} executed successfully`);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            this.logger.error(`Error executing seed statement ${i + 1}/${seedStatements.length}: ${statement.substring(0, 100)}...`);
+            this.logger.error(`Error details: ${errorMessage}`);
+            
+            // For seed data, we can be more lenient with duplicate key errors
+            if (errorMessage.includes('duplicate key') || 
+                errorMessage.includes('already exists') ||
+                errorMessage.includes('UNIQUE constraint failed')) {
+              this.logger.warn(`Continuing despite duplicate data error: ${errorMessage}`);
+            } else {
+              throw new Error(`Failed to execute seed statement: ${errorMessage}`);
+            }
+          }
+        }
       }
     } finally {
       await client.end();

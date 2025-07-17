@@ -2,7 +2,7 @@
  * Component for the student exercises page
  * Shows exercise cards and allows SQL query practice with feedback
  */
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, ChangeDetectorRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
@@ -40,6 +40,8 @@ import { TableDataService } from './table-data.service';
 import { QueryExecutionService } from './query-execution.service';
 import { StudentExerciseStateService, ComponentState } from './student-exercise-state.service';
 import { ErrorHandlingService } from './error-handling.service';
+import { DialogService } from '../shared/services/dialog.service';
+import { DatabaseVisualizationDialogComponent } from '../dialogs/database-visualization-dialog.component';
 
 @Component({
   selector: 'app-student-exercises',
@@ -67,6 +69,9 @@ import { ErrorHandlingService } from './error-handling.service';
 })
 export class StudentExercisesComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
+  
+  // Inject DialogService
+  protected dialogService = inject(DialogService);
   
   // UI state
   activeTab: 'schema' | 'data' = 'schema';
@@ -233,8 +238,20 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
         next: ({ tables, seedData }) => {
           this.databaseTables = tables;
           
-          if (tables.length > 0) {
+          // Only auto-select first table if there are tables and no table is currently selected
+          if (tables.length > 0 && !this.selectedTable) {
             this.viewTableData(tables[0].tableName);
+          }
+          
+          // If we have multiple tables and a table is already selected, refresh its data
+          if (tables.length > 0 && this.selectedTable) {
+            const selectedTableExists = tables.some(t => t.tableName === this.selectedTable);
+            if (selectedTableExists) {
+              this.viewTableData(this.selectedTable);
+            } else {
+              // Selected table doesn't exist anymore, select the first one
+              this.viewTableData(tables[0].tableName);
+            }
           }
           
           this.cdr.markForCheck();
@@ -517,6 +534,22 @@ export class StudentExercisesComponent implements OnInit, OnDestroy {
     this.stateService.resetStates();
     
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Open database visualization dialog
+   */
+  visualizeDatabase(): void {
+    if (!this.selectedExercise) return;
+    
+    this.dialogService.openDialog(DatabaseVisualizationDialogComponent, {
+      width: '90vw',
+      maxWidth: '1200px',
+      data: {
+        databaseId: this.selectedExercise.databaseSchemaId,
+        databaseName: this.selectedExercise.database.name
+      }
+    });
   }
 
   /**
