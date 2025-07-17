@@ -40,19 +40,30 @@ export class DatabaseGenerationService {
       );
     }
 
-    this.logger.log(`Generating database for prompt: ${request.prompt}`);
+    this.logger.log(`Starting database generation for: "${request.prompt}" with ${request.tableCount} tables`);
 
     try {
       // Build the generation prompt
       const prompt = this.buildPrompt(request);
+      this.logger.debug(`Generated prompt length: ${prompt.length} characters`);
       
       // Call OpenAI API
       const responseContent = await this.callOpenAI(prompt);
+      this.logger.debug(`OpenAI response length: ${responseContent.length} characters`);
       
       // Parse the response
       const generatedDatabase = this.parseResponse(responseContent, request);
       
-      this.logger.log(`Successfully generated database: ${generatedDatabase.name}`);
+      // Additional validation
+      const actualTableCount = this.countTablesInSchema(generatedDatabase.schema);
+      if (actualTableCount < request.tableCount) {
+        this.logger.warn(`Generated ${actualTableCount} tables, but ${request.tableCount} were requested`);
+      }
+      
+      this.logger.log(`Successfully generated database: ${generatedDatabase.name} with ${actualTableCount} tables`);
+      this.logger.debug(`Schema length: ${generatedDatabase.schema.length} characters`);
+      this.logger.debug(`Seed data length: ${generatedDatabase.seedData.length} characters`);
+      
       return generatedDatabase;
       
     } catch (error) {
@@ -85,22 +96,35 @@ ANFORDERUNGEN:
 - Verwende PostgreSQL-Syntax
 - Erstelle sinnvolle Beispieldaten für alle Tabellen
 
-ANTWORT-FORMAT (als JSON):
+KRITISCHE REGELN:
+1. Erstelle EXAKT ${request.tableCount} Tabellen - KEINE darf fehlen!
+2. Jede Tabelle MUSS einen PRIMARY KEY haben (verwende SERIAL)
+3. Verwende Foreign Keys für Beziehungen zwischen Tabellen
+4. Stelle sicher, dass ALLE Tabellen syntaktisch korrekt sind
+5. Erstelle mindestens 3-5 Datensätze pro Tabelle
+6. Achte auf die Reihenfolge: Tabellen ohne Dependencies zuerst
+
+ANTWORT-FORMAT (NUR gültiges JSON ohne zusätzlichen Text):
 {
-  "name": "database_name",
+  "name": "database_name_ohne_leerzeichen",
   "description": "Kurze Beschreibung der Datenbank auf Deutsch",
-  "schema": "-- DDL Statements\\nCREATE TABLE users (\\n  id SERIAL PRIMARY KEY,\\n  name VARCHAR(100) NOT NULL\\n);",
-  "seedData": "-- INSERT Statements\\nINSERT INTO users (name) VALUES ('Max Mustermann');"
+  "schema": "CREATE TABLE tabelle1 (\\n  id SERIAL PRIMARY KEY,\\n  name VARCHAR(100) NOT NULL\\n);\\n\\nCREATE TABLE tabelle2 (\\n  id SERIAL PRIMARY KEY,\\n  tabelle1_id INTEGER REFERENCES tabelle1(id),\\n  beschreibung TEXT\\n);",
+  "seedData": "INSERT INTO tabelle1 (name) VALUES ('Beispiel 1'), ('Beispiel 2');\\n\\nINSERT INTO tabelle2 (tabelle1_id, beschreibung) VALUES (1, 'Test'), (2, 'Test2');"
 }
 
-WICHTIGE HINWEISE:
-- Nutze sinnvolle Tabellen- und Spaltennamen auf Englisch
-- Erstelle realistische Constraints und Foreign Keys
-- Füge für jede Tabelle 3-5 Beispieldatensätze hinzu
-- Verwende SERIAL für Auto-Increment Primary Keys
-- Achte auf korrekte PostgreSQL-Syntax
-- Erstelle ein zusammenhängendes, logisches Datenbankschema
-- Beschreibung auf Deutsch, SQL-Code auf Englisch`;
+SQL-SCHEMA ANFORDERUNGEN:
+- Jedes CREATE TABLE Statement muss vollständig und syntaktisch korrekt sein
+- Verwende konsistente Naming-Conventions (snake_case)
+- Definiere angemessene Datentypen: VARCHAR(n), INTEGER, TIMESTAMP, TEXT, BOOLEAN
+- Beende jedes Statement mit Semikolon
+- Verwende \\n für Zeilenumbrüche im JSON String
+- Foreign Keys: "REFERENCES tabelle(spalte)" Syntax
+
+SEED-DATA ANFORDERUNGEN:
+- Erstelle realistische aber einfache Testdaten
+- Achte auf Foreign Key Abhängigkeiten (Referenzierte Tabellen zuerst einfügen)
+- Alle INSERT Statements müssen syntaktisch korrekt sein
+- Verwende sinnvolle Werte für alle Spalten`;
 
     return prompt;
   }
@@ -135,15 +159,34 @@ WICHTIGE HINWEISE:
           messages: [
             {
               role: 'system',
-              content: 'Du bist ein erfahrener Datenbankarchitekt, der hochwertige SQL-Datenbankschemas erstellt.',
+              content: `Du bist ein Experte für PostgreSQL-Datenbankdesign. 
+              
+WICHTIGE REGELN:
+- Antworte NUR mit validem JSON - keine Erklärungen oder zusätzlicher Text
+- Erstelle ALLE angeforderten Tabellen vollständig
+- Verwende korrekte PostgreSQL-Syntax
+- Jede Tabelle braucht einen PRIMARY KEY (SERIAL)
+- Verwende Foreign Keys für Beziehungen
+- Erstelle realistische Testdaten für alle Tabellen
+
+AUSGABEFORMAT:
+{
+  "name": "datenbankname",
+  "description": "Beschreibung",
+  "schema": "CREATE TABLE statements...",
+  "seedData": "INSERT statements..."
+}`,
             },
             {
               role: 'user',
               content: prompt,
             },
           ],
-          max_tokens: 2000,
-          temperature: 0.7,
+          max_tokens: 3000,
+          temperature: 0.3, // Lower temperature for more consistent results
+          top_p: 0.9,
+          frequency_penalty: 0.0,
+          presence_penalty: 0.0,
         }),
         signal: controller.signal,
       });
@@ -177,24 +220,53 @@ WICHTIGE HINWEISE:
    */
   private parseResponse(responseContent: string, request: DatabaseGenerationRequest): GeneratedDatabase {
     try {
-      // Try to extract JSON from the response
-      const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
+      this.logger.debug(`Raw OpenAI response: ${responseContent}`);
+      
+      // Try multiple methods to extract JSON from the response
+      let parsed: any = null;
+      
+      // Method 1: Direct JSON parsing
+      try {
+        parsed = JSON.parse(responseContent);
+      } catch (e) {
+        // Method 2: Extract JSON from code blocks
+        const codeBlockMatch = responseContent.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+        if (codeBlockMatch) {
+          parsed = JSON.parse(codeBlockMatch[1]);
+        } else {
+          // Method 3: Extract any JSON object from response
+          const jsonMatch = responseContent.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            // Clean up the JSON string
+            let jsonString = jsonMatch[0];
+            // Remove any trailing text after the last }
+            const lastBrace = jsonString.lastIndexOf('}');
+            if (lastBrace !== -1) {
+              jsonString = jsonString.substring(0, lastBrace + 1);
+            }
+            parsed = JSON.parse(jsonString);
+          }
+        }
+      }
+
+      if (!parsed) {
         throw new Error('No valid JSON found in OpenAI response');
       }
 
-      const parsed = JSON.parse(jsonMatch[0]);
-
-      // Validate required fields
+      // Validate and clean up the schema
       if (!parsed.schema) {
         throw new Error('Missing schema in generated database');
       }
 
+      // Clean and validate the schema
+      const cleanedSchema = this.cleanAndValidateSchema(parsed.schema);
+      const cleanedSeedData = this.cleanAndValidateSeedData(parsed.seedData || '');
+
       // Set default values if missing
       const result: GeneratedDatabase = {
         name: parsed.name || request.databaseName || this.generateDefaultName(request.prompt),
-        schema: parsed.schema,
-        seedData: parsed.seedData || '',
+        schema: cleanedSchema,
+        seedData: cleanedSeedData,
         description: parsed.description || ''
       };
 
@@ -205,6 +277,10 @@ WICHTIGE HINWEISE:
         .replace(/_{2,}/g, '_')
         .replace(/^_|_$/g, '');
 
+      // Validate that we have at least the requested number of tables
+      const tableCount = this.countTablesInSchema(result.schema);
+      this.logger.log(`Generated database with ${tableCount} tables (requested: ${request.tableCount})`);
+
       return result;
 
     } catch (error) {
@@ -212,6 +288,70 @@ WICHTIGE HINWEISE:
       this.logger.debug(`Raw response: ${responseContent}`);
       throw new Error(`Fehler beim Verarbeiten der KI-Antwort: ${error.message}`);
     }
+  }
+
+  /**
+   * Clean and validate the generated schema
+   */
+  private cleanAndValidateSchema(schema: string): string {
+    if (!schema) {
+      throw new Error('Schema ist leer');
+    }
+
+    // Remove any markdown code block markers
+    let cleaned = schema.replace(/```(?:sql)?\s*/g, '').replace(/```/g, '');
+    
+    // Ensure proper statement termination
+    const statements = cleaned.split(';').map(s => s.trim()).filter(s => s.length > 0);
+    
+    // Validate each CREATE TABLE statement
+    const validStatements = statements.filter(statement => {
+      if (statement.toUpperCase().includes('CREATE TABLE')) {
+        // Basic validation for CREATE TABLE syntax
+        return statement.match(/CREATE\s+TABLE\s+\w+\s*\(/i);
+      }
+      return true; // Keep non-CREATE TABLE statements
+    });
+
+    if (validStatements.length === 0) {
+      throw new Error('Keine gültigen CREATE TABLE Statements gefunden');
+    }
+
+    return validStatements.join(';\n') + ';';
+  }
+
+  /**
+   * Clean and validate the generated seed data
+   */
+  private cleanAndValidateSeedData(seedData: string): string {
+    if (!seedData) {
+      return '';
+    }
+
+    // Remove any markdown code block markers
+    let cleaned = seedData.replace(/```(?:sql)?\s*/g, '').replace(/```/g, '');
+    
+    // Ensure proper statement termination
+    const statements = cleaned.split(';').map(s => s.trim()).filter(s => s.length > 0);
+    
+    // Filter valid INSERT statements
+    const validStatements = statements.filter(statement => {
+      if (statement.toUpperCase().includes('INSERT')) {
+        // Basic validation for INSERT syntax
+        return statement.match(/INSERT\s+INTO\s+\w+/i);
+      }
+      return true; // Keep non-INSERT statements
+    });
+
+    return validStatements.length > 0 ? validStatements.join(';\n') + ';' : '';
+  }
+
+  /**
+   * Count the number of tables in a schema
+   */
+  private countTablesInSchema(schema: string): number {
+    const matches = schema.match(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?\w+/gi);
+    return matches ? matches.length : 0;
   }
 
   /**
