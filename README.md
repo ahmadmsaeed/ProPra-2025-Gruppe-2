@@ -108,7 +108,6 @@ npm start
 | **Database** | PostgreSQL 15 | Primary Relational Database |
 | **Containerization** | Docker 24 | Application Isolation |
 | **Authentication** | JWT | Stateless Authentication |
-| **Testing** | Jest 29 | Unit & Integration Testing |
 
 ---
 
@@ -121,7 +120,7 @@ docker-compose down
 docker-compose down --volumes  # Complete reset
 
 # Production deployment
-docker-compose -f docker-compose.prod.yml up -d
+docker-compose up -d
 ```
 
 ---
@@ -160,8 +159,8 @@ This project demonstrates practical application of modern web development techno
 ## License & Contact
 
 **Project Team**: ProPra 2025 - Group 2  
-**Institution**: [University Name]  
-**Course**: Programmierpraktikum (Software Engineering Project)  
+**Institution**: [Universität Siegen]  
+**Course**: Programmierpraktikum 
 **Academic Year**: 2025
 
 *Developed as part of the ProPra 2025 curriculum demonstrating modern software engineering practices in educational technology.*
